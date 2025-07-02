@@ -1,0 +1,54 @@
+{
+  "plans": [
+    {
+      "id": "basic",
+      "name": "Plan Básico",
+      "price": 29,
+      "period": "mes",
+      "description": "Ideal para autónomos y pequeños negocios",
+      "features": [
+        "Hasta 10 facturas mensuales",
+        "Declaraciones trimestrales básicas",
+        "Soporte por email",
+        "Acceso al marketplace básico",
+        "1 consulta mensual con asesor"
+      ],
+      "popular": false
+    },
+    {
+      "id": "professional",
+      "name": "Plan Profesional",
+      "price": 79,
+      "period": "mes",
+      "description": "Para empresas en crecimiento",
+      "features": [
+        "Facturas ilimitadas",
+        "Declaraciones completas",
+        "Soporte prioritario",
+        "Acceso completo al marketplace",
+        "3 consultas mensuales con asesor",
+        "Gestión de nóminas básica",
+        "Análisis fiscal personalizado"
+      ],
+      "popular": true
+    },
+    {
+      "id": "enterprise",
+      "name": "Plan Empresa",
+      "price": 149,
+      "period": "mes",
+      "description": "Para grandes empresas y corporaciones",
+      "features": [
+        "Todo del Plan Profesional",
+        "Asesor dedicado",
+        "Consultas ilimitadas",
+        "Gestión de nóminas completa",
+        "Auditorías fiscales",
+        "Optimización fiscal avanzada",
+        "Soporte 24/7",
+        "API personalizada"
+      ],
+      "popular": false
+    }
+  ]
+}
