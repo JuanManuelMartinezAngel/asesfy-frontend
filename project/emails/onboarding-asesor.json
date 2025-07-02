@@ -1,0 +1,122 @@
+{
+  "name": "Onboarding Asesor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboarding-asesor"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getMany",
+        "resource": "Row",
+        "table": "advisor_profiles",
+        "filters": [
+          {
+            "field": "user_id",
+            "operation": "equals",
+            "value": "={{$json[\"body\"][\"user_id\"]}}"
+          }
+        ]
+      },
+      "name": "Buscar Asesor",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "supabaseApi": "Supabase account"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "Row",
+        "table": "advisor_profiles",
+        "columns": "user_id,employee_id,department,specializations,hire_date,license_number,bio",
+        "values": "={{$json[\"body\"][\"user_id\"]}},={{$json[\"body\"][\"employee_id\"]}},={{$json[\"body\"][\"department\"]}},={{$json[\"body\"][\"specializations\"]}},={{$json[\"body\"][\"hire_date\"]}},={{$json[\"body\"][\"license_number\"]}},={{$json[\"body\"][\"bio\"]}}"
+      },
+      "name": "Crear Perfil Asesor",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [750, 200],
+      "credentials": {
+        "supabaseApi": "Supabase account"
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "notificaciones@asesfy.com",
+        "toEmail": "={{$json[\"body\"][\"email\"]}}",
+        "subject": "¡Bienvenido a AsesFy!",
+        "text": "Hola {{$json[\"body\"][\"full_name\"]}},\n\n¡Bienvenido al equipo de AsesFy! Tu perfil de asesor ha sido creado correctamente.\n\nDatos de tu perfil:\n- Departamento: {{$json[\"body\"][\"department\"]}}\n- Especializaciones: {{$json[\"body\"][\"specializations\"]}}\n- Fecha de alta: {{$json[\"body\"][\"hire_date\"]}}\n\nSi tienes dudas, contacta con soporte.\n\nUn saludo,\nEl equipo de AsesFy."
+      },
+      "name": "Enviar Email Bienvenida",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1000, 200],
+      "credentials": {
+        "smtp": "SMTP AsesFy"
+      }
+    },
+    {
+      "parameters": {
+        "responseData": "Onboarding de asesor completado"
+      },
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.webhookResponse",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Buscar Asesor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Asesor": {
+      "main": [
+        [
+          {
+            "node": "Crear Perfil Asesor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Perfil Asesor": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email Bienvenida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Email Bienvenida": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+} 
