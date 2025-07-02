@@ -25,7 +25,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env
 .env*.local
 
 # vercel
@@ -34,3 +33,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase functions (Deno) - never include these
+../supabase/
+../supabase/**/*
+supabase/
+supabase/**/*
+/supabase/
+/supabase/**/*
