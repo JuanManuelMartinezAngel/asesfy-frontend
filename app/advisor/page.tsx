@@ -255,7 +255,7 @@ export default function AdvisorDashboardPage() {
               <div className="text-2xl font-bold text-[#0A1B3D]">
                 {stats?.completionRate}%
               </div>
-              <Progress value={stats?.completionRate} className="mt-2" />
+              <Progress value={stats?.completionRate || 0} className="mt-2" />
             </CardContent>
           </Card>
         </div>
@@ -403,7 +403,7 @@ export default function AdvisorDashboardPage() {
                       <span>Tareas Completadas</span>
                       <span>{stats?.completionRate}%</span>
                     </div>
-                    <Progress value={stats?.completionRate} />
+                    <Progress value={stats?.completionRate || 0} />
                   </div>
                 </div>
               </CardContent>

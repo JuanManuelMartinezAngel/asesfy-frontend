@@ -12,6 +12,9 @@ const nextConfig = {
   },
   // Configuración de webpack para resolver problemas de dependencias
   webpack: (config, { isServer }) => {
+    // Silenciar warnings críticos de Supabase realtime-js
+    config.module.exprContextCritical = false;
+    
     // Ignorar módulos opcionales de WebSocket que causan warnings
     config.externals = config.externals || [];
     config.externals.push({
