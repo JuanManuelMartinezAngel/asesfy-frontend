@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import { useCartStore } from '@/store/useCartStore';
 import { useSubscriptionStore } from '@/store/useSubscriptionStore';
 import SearchDialog from '@/components/ui/SearchDialog';
 import {
-  Calculator,
   ShoppingCart,
   User,
   Menu,
@@ -196,9 +196,15 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
-            <Calculator className="h-7 w-7 sm:h-8 sm:w-8 text-[#0A1B3D]" />
-            <span className="text-xl sm:text-2xl font-bold text-[#0A1B3D]">Asesfy</span>
+          <Link href="/" className="flex items-center flex-shrink-0">
+            <Image 
+              src="/logos/asesfy-logo.png" 
+              alt="Asesfy Logo" 
+              width={36} 
+              height={36}
+              className="h-8 w-8 sm:h-10 sm:w-10 object-contain mb-1" 
+            />
+            <span className="text-xl sm:text-2xl font-bold text-[#0A1B3D] -ml-1">sesfy</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -323,9 +329,15 @@ export function Header() {
                   </SheetTrigger>
                   <SheetContent side="right" className="w-[300px] sm:w-[350px]">
                     <SheetHeader>
-                      <SheetTitle className="flex items-center space-x-2">
-                        <Calculator className="h-6 w-6 text-[#0A1B3D]" />
-                        <span className="text-xl font-bold text-[#0A1B3D]">Asesfy</span>
+                      <SheetTitle className="flex items-center">
+                        <Image 
+                          src="/logos/asesfy-logo.png" 
+                          alt="Asesfy Logo" 
+                          width={28} 
+                          height={28}
+                          className="h-7 w-7 object-contain mb-1" 
+                        />
+                        <span className="text-xl font-bold text-[#0A1B3D] -ml-1">sesfy</span>
                       </SheetTitle>
                     </SheetHeader>
                     
@@ -456,9 +468,15 @@ export function Header() {
                   </SheetTrigger>
                   <SheetContent side="right" className="w-[300px]">
                     <SheetHeader>
-                      <SheetTitle className="flex items-center space-x-2">
-                        <Calculator className="h-6 w-6 text-[#0A1B3D]" />
-                        <span className="text-xl font-bold text-[#0A1B3D]">Asesfy</span>
+                      <SheetTitle className="flex items-center">
+                        <Image 
+                          src="/logos/asesfy-logo.png" 
+                          alt="Asesfy Logo" 
+                          width={28} 
+                          height={28}
+                          className="h-7 w-7 object-contain mb-1" 
+                        />
+                        <span className="text-xl font-bold text-[#0A1B3D] -ml-1">sesfy</span>
                       </SheetTitle>
                     </SheetHeader>
                     
