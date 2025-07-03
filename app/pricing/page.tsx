@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Star, Loader2 } from 'lucide-react';
+import { CheckCircle, Star, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { stripeProducts, type StripeProduct } from '@/src/stripe-config';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -61,14 +61,25 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F6F9] py-12">
+    <div className="min-h-screen bg-[#F5F6F9] py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back Navigation */}
+        <div className="mb-6 sm:mb-8">
+          <Link 
+            href="/" 
+            className="inline-flex items-center text-sm text-gray-600 hover:text-[#0A1B3D] transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al inicio
+          </Link>
+        </div>
+
         {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-[#0A1B3D] mb-6">
+        <div className="text-center mb-12 sm:mb-16">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0A1B3D] mb-4 sm:mb-6">
             Elige el plan perfecto para tu negocio
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto mb-6 sm:mb-8 leading-relaxed">
             Simplifica tu gestión fiscal con nuestros planes diseñados para 
             cada etapa de crecimiento de tu empresa.
           </p>
@@ -78,13 +89,13 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12 sm:mb-16 max-w-5xl mx-auto">
           {stripeProducts.map((product, index) => (
             <Card 
               key={product.id} 
               className={`relative border-0 shadow-xl hover:shadow-2xl transition-all duration-300 ${
                 index === 0 
-                  ? 'ring-2 ring-[#2FD7B5] scale-105' 
+                  ? 'ring-2 ring-[#2FD7B5] lg:scale-105' 
                   : 'hover:scale-105'
               }`}
             >
@@ -97,77 +108,77 @@ export default function PricingPage() {
                 </div>
               )}
               
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="text-2xl font-bold text-[#0A1B3D] mb-2">
+              <CardHeader className="text-center pb-6 p-6 sm:p-8">
+                <CardTitle className="text-xl sm:text-2xl font-bold text-[#0A1B3D] mb-2">
                   {product.name}
                 </CardTitle>
-                <CardDescription className="text-gray-600 mb-4">
+                <CardDescription className="text-gray-600 mb-4 text-sm sm:text-base">
                   {product.description}
                 </CardDescription>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-bold text-[#0A1B3D]">
+                  <span className="text-3xl sm:text-4xl font-bold text-[#0A1B3D]">
                     €{product.price}
                   </span>
-                  <span className="text-gray-600 ml-2">
+                  <span className="text-gray-600 ml-2 text-sm sm:text-base">
                     /mes
                   </span>
                 </div>
               </CardHeader>
               
-              <CardContent>
-                <ul className="space-y-3 mb-8">
+              <CardContent className="p-6 sm:p-8 pt-0">
+                <ul className="space-y-3 mb-6 sm:mb-8">
                   {product.name === 'Starter Plan' ? (
                     <>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Hasta 10 facturas mensuales</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Hasta 10 facturas mensuales</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Declaraciones trimestrales básicas</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Declaraciones trimestrales básicas</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Soporte por email</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Soporte por email</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Acceso al marketplace básico</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Acceso al marketplace básico</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">1 consulta mensual con asesor</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">1 consulta mensual con asesor</span>
                       </li>
                     </>
                   ) : (
                     <>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Facturas ilimitadas</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Facturas ilimitadas</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Declaraciones completas</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Declaraciones completas</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Soporte prioritario</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Soporte prioritario</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Acceso completo al marketplace</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Acceso completo al marketplace</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">3 consultas mensuales con asesor</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">3 consultas mensuales con asesor</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Gestión de nóminas básica</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Gestión de nóminas básica</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">Análisis fiscal personalizado</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Análisis fiscal personalizado</span>
                       </li>
                     </>
                   )}
@@ -177,7 +188,7 @@ export default function PricingPage() {
                   <Button 
                     onClick={() => handleSubscribe(product)}
                     disabled={isLoading}
-                    className={`w-full ${
+                    className={`w-full h-12 text-sm sm:text-base font-medium ${
                       index === 0
                         ? 'bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white'
                         : 'bg-white border-2 border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white'
@@ -193,84 +204,173 @@ export default function PricingPage() {
                     )}
                   </Button>
                 ) : (
-                  <Link href="/login">
-                    <Button 
-                      className={`w-full ${
-                        index === 0
-                          ? 'bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white'
-                          : 'bg-white border-2 border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white'
-                      }`}
-                    >
-                      Iniciar Sesión para Elegir
-                    </Button>
-                  </Link>
+                  <div className="space-y-3">
+                    <Link href="/login" className="w-full block">
+                      <Button 
+                        className={`w-full h-12 text-sm sm:text-base font-medium ${
+                          index === 0
+                            ? 'bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white'
+                            : 'bg-white border-2 border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white'
+                        }`}
+                      >
+                        Iniciar Sesión para Suscribirse
+                      </Button>
+                    </Link>
+                    <div className="text-center">
+                      <Link 
+                        href="/onboarding" 
+                        className="text-sm text-[#2FD7B5] hover:underline"
+                      >
+                        ¿No tienes cuenta? Créala gratis
+                      </Link>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* FAQ Section */}
-        <div className="bg-white rounded-2xl p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-[#0A1B3D] text-center mb-8">
-            Preguntas Frecuentes
+        {/* Features Comparison */}
+        <div className="mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0A1B3D] text-center mb-8 sm:mb-12">
+            Comparación Detallada
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="font-semibold text-[#0A1B3D] mb-2">
-                ¿Puedo cambiar de plan en cualquier momento?
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Sí, puedes actualizar o reducir tu plan en cualquier momento desde 
-                tu panel de configuración. Los cambios se aplican inmediatamente.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-[#0A1B3D] mb-2">
-                ¿Qué incluye la prueba gratuita?
-              </h3>
-              <p className="text-gray-600 text-sm">
-                La prueba de 30 días incluye acceso completo a todas las 
-                funcionalidades del plan que elijas, sin limitaciones.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-[#0A1B3D] mb-2">
-                ¿Hay permanencia mínima?
-              </h3>
-              <p className="text-gray-600 text-sm">
-                No, nuestros planes son mensuales sin permanencia. Puedes 
-                cancelar tu suscripción en cualquier momento.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-[#0A1B3D] mb-2">
-                ¿Incluyen soporte técnico?
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Todos los planes incluyen soporte técnico. Los planes superiores 
-                tienen soporte prioritario y por teléfono.
-              </p>
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base">
+                      Características
+                    </th>
+                    <th className="text-center p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base min-w-32">
+                      Starter
+                    </th>
+                    <th className="text-center p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base min-w-32">
+                      Pro
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr>
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Facturas mensuales</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Hasta 10</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Ilimitadas</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Declaraciones fiscales</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Básicas</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Completas</td>
+                  </tr>
+                  <tr>
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Consultas con asesor</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">1/mes</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">3/mes</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Soporte</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Email</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Prioritario</td>
+                  </tr>
+                  <tr>
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Gestión de nóminas</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
+                    </td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Análisis fiscal personalizado</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center mt-16">
-          <h2 className="text-2xl font-bold text-[#0A1B3D] mb-4">
-            ¿Necesitas un plan personalizado?
+        {/* FAQ Section */}
+        <div className="mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0A1B3D] text-center mb-8 sm:mb-12">
+            Preguntas Frecuentes
           </h2>
-          <p className="text-gray-600 mb-6">
-            Para empresas con necesidades específicas, ofrecemos planes a medida 
-            con funcionalidades personalizadas.
+          
+          <div className="max-w-3xl mx-auto space-y-6">
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-[#0A1B3D] mb-2 text-sm sm:text-base">
+                  ¿Puedo cambiar de plan en cualquier momento?
+                </h3>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  Sí, puedes actualizar o degradar tu plan en cualquier momento. 
+                  Los cambios se aplicarán en tu próximo ciclo de facturación.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-[#0A1B3D] mb-2 text-sm sm:text-base">
+                  ¿Qué incluye la prueba gratuita?
+                </h3>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  La prueba gratuita de 30 días incluye acceso completo a todas las 
+                  funciones del plan que elijas, sin restricciones.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-[#0A1B3D] mb-2 text-sm sm:text-base">
+                  ¿Hay permanencia mínima?
+                </h3>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  No, no hay permanencia mínima. Puedes cancelar tu suscripción 
+                  en cualquier momento desde tu panel de usuario.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0A1B3D] mb-4 sm:mb-6">
+            ¿Necesitas ayuda para elegir?
+          </h2>
+          <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base max-w-2xl mx-auto">
+            Nuestro equipo de especialistas puede ayudarte a encontrar el plan 
+            perfecto para las necesidades específicas de tu negocio.
           </p>
-          <Button variant="outline" size="lg" className="border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white">
-            Contactar con Ventas
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-12 text-sm sm:text-base"
+              asChild
+            >
+              <a href="mailto:ventas@asesfy.com">
+                Contactar Ventas
+              </a>
+            </Button>
+            <Button 
+              className="flex-1 bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white h-12 text-sm sm:text-base"
+              asChild
+            >
+              <Link href="/chat-ia">
+                Chat con IA
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
