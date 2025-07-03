@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Calculator, Mail, Phone, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, Phone, MapPin } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -8,9 +9,15 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {/* Logo & Description */}
           <div className="sm:col-span-2 lg:col-span-2">
-            <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Calculator className="h-6 w-6 sm:h-8 sm:w-8 text-[#2FD7B5]" />
-              <span className="text-xl sm:text-2xl font-bold">Asesfy</span>
+            <Link href="/" className="flex items-center mb-4">
+              <Image 
+                src="/logos/asesfy-logo.png" 
+                alt="Asesfy Logo" 
+                width={40} 
+                height={40} 
+                className="h-7 w-7 sm:h-9 sm:w-9 object-contain" 
+              />
+              <span className="text-xl sm:text-2xl font-bold -ml-1">sesfy</span>
             </Link>
             <p className="text-gray-300 mb-4 text-sm sm:text-base leading-relaxed">
               Simplificamos tu gestión fiscal con tecnología avanzada y 
