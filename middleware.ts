@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// ✅ Correos de asesores autorizados
+const AUTHORIZED_ADVISOR_EMAILS = [
+  'asesor1@demo.com',
+  'asesor2@demo.com',
+  'asesor3@demo.com',
+  'asesor4@demo.com',
+  'asesor5@demo.com'
+];
+
+// ✅ Función para validar si un correo es de asesor
+const isAdvisorEmail = (email: string): boolean => {
+  // Verificar si está en la lista de autorizados
+  if (AUTHORIZED_ADVISOR_EMAILS.includes(email.toLowerCase())) {
+    return true;
+  }
+  
+  // Verificar si sigue el patrón asesor[número]@demo.com
+  const advisorPattern = /^asesor\d+@demo\.com$/i;
+  return advisorPattern.test(email);
+};
+
 // Routes that require authentication
 const protectedRoutes = [
   '/dashboard',
@@ -32,12 +53,27 @@ export async function middleware(req: NextRequest) {
     const authCookie = req.cookies.get('auth-session');
     const isAuthenticated = !!authCookie;
 
-    // Get user role from cookie (in production this would be from JWT or session)
+    // Get user role and email from cookies
     const userRole = req.cookies.get('user-role')?.value || 'client';
+    const userEmail = req.cookies.get('user-email')?.value || '';
+
+    // ✅ Validar acceso a rutas de asesor con sistema de correos autorizados
+    if (isAuthenticated && advisorRoutes.some(route => pathname.startsWith(route))) {
+      // Verificar si el usuario es realmente un asesor autorizado
+      if (userRole === 'advisor' && !isAdvisorEmail(userEmail)) {
+        console.warn(`Unauthorized advisor access attempt: ${userEmail}`);
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+      
+      // Si el rol es cliente pero el email es de asesor, redirigir al dashboard
+      if (userRole !== 'advisor') {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+    }
 
     // If user is on an auth route and already authenticated, redirect based on role
     if (isAuthenticated && authRoutes.includes(pathname)) {
-      if (userRole === 'advisor') {
+      if (userRole === 'advisor' && isAdvisorEmail(userEmail)) {
         return NextResponse.redirect(new URL('/advisor', req.url));
       } else {
         return NextResponse.redirect(new URL('/dashboard', req.url));
@@ -49,11 +85,6 @@ export async function middleware(req: NextRequest) {
       const redirectUrl = new URL('/login', req.url);
       redirectUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(redirectUrl);
-    }
-
-    // If user is trying to access advisor routes but is not an advisor
-    if (isAuthenticated && advisorRoutes.some(route => pathname.startsWith(route)) && userRole !== 'advisor') {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
     return res;

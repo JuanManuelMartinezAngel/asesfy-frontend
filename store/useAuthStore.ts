@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, auth } from '@/lib/auth';
+import { isAdvisorEmail, determineRoleFromEmail, handleUserOnboarding } from '@/lib/advisor-utils';
 
 interface AuthState {
   user: User | null;
@@ -39,21 +40,31 @@ export const useAuthStore = create<AuthState>()(
 
           if (data.user) {
             const meta = data.user.user_metadata as UserMetadata;
+            
+            // ✅ Determinar rol basado en el email
+            const determinedRole = determineRoleFromEmail(data.user.email!);
+            
+            // ✅ Validar que el usuario tenga permisos de asesor si intenta acceder como tal
+            if (meta.role === 'advisor' && !isAdvisorEmail(data.user.email!)) {
+              return { success: false, error: 'No tienes permisos de asesor. Contacta con el administrador.' };
+            }
+            
             const user: User = {
               id: data.user.id,
               email: data.user.email!,
               full_name: meta.full_name || 'Usuario Demo',
               avatar_url: meta.avatar_url || '',
-              role: meta.role || 'client',
+              role: determinedRole, // Usar el rol determinado por el email
               advisor_id: meta.advisor_id || '',
             };
             
             set({ user, isAuthenticated: true });
             
-            // Set auth cookie for middleware
+            // ✅ Set auth cookies for middleware including email
             if (typeof window !== 'undefined') {
               document.cookie = 'auth-session=true; path=/';
               document.cookie = `user-role=${user.role}; path=/`;
+              document.cookie = `user-email=${user.email}; path=/`;
             }
             
             return { success: true };
@@ -65,12 +76,30 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUp: async (email: string, password: string, fullName: string, role: 'client' | 'advisor' = 'client') => {
+      signUp: async (email: string, password: string, fullName: string, role?: 'client' | 'advisor') => {
         try {
-          const { data, error } = await auth.signUp(email, password, fullName, role);
+          // ✅ Determinar rol automáticamente basado en el email
+          const determinedRole = determineRoleFromEmail(email);
+          
+          // ✅ Si se especifica un rol de asesor, validar que el email esté autorizado
+          if (role === 'advisor' && !isAdvisorEmail(email)) {
+            return { success: false, error: 'Este correo no está autorizado para ser asesor.' };
+          }
+          
+          const { data, error } = await auth.signUp(email, password, fullName, determinedRole);
           
           if (error) {
             return { success: false, error: error.message };
+          }
+
+          // ✅ Manejar onboarding automático si el registro es exitoso
+          if (data.user) {
+            try {
+              await handleUserOnboarding(data.user.id, email, fullName);
+            } catch (onboardingError) {
+              console.error('Error in user onboarding:', onboardingError);
+              // No fallar el registro por errores de onboarding
+            }
           }
 
           return { success: true };
@@ -83,10 +112,11 @@ export const useAuthStore = create<AuthState>()(
         await auth.signOut();
         set({ user: null, isAuthenticated: false });
         
-        // Remove auth cookies
+        // ✅ Remove all auth cookies
         if (typeof window !== 'undefined') {
           document.cookie = 'auth-session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
           document.cookie = 'user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+          document.cookie = 'user-email=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
         }
       },
 
@@ -103,10 +133,11 @@ export const useAuthStore = create<AuthState>()(
         const { user, isAuthenticated } = get();
         
         if (user && isAuthenticated) {
-          // Set auth cookie if we have persisted state
+          // ✅ Set auth cookies if we have persisted state
           if (typeof window !== 'undefined') {
             document.cookie = `auth-session=true; path=/`;
             document.cookie = `user-role=${user.role}; path=/`;
+            document.cookie = `user-email=${user.email}; path=/`;
           }
           set({ isLoading: false });
           return;
@@ -120,12 +151,15 @@ export const useAuthStore = create<AuthState>()(
             const { user } = await auth.getUser();
             const authUser = user ? (() => {
               const meta = user.user_metadata as UserMetadata;
+              // ✅ Determinar rol basado en el email
+              const determinedRole = determineRoleFromEmail(user.email!);
+              
               return {
                 id: user.id,
                 email: user.email!,
                 full_name: meta.full_name || 'Usuario Demo',
                 avatar_url: meta.avatar_url || '',
-                role: meta.role || 'client',
+                role: determinedRole, // Usar el rol determinado por el email
                 advisor_id: meta.advisor_id || '',
               };
             })() : null;
@@ -139,6 +173,7 @@ export const useAuthStore = create<AuthState>()(
             if (authUser && typeof window !== 'undefined') {
               document.cookie = `auth-session=true; path=/`;
               document.cookie = `user-role=${authUser.role}; path=/`;
+              document.cookie = `user-email=${authUser.email}; path=/`;
             }
           } catch (error) {
             set({ 
@@ -155,12 +190,15 @@ export const useAuthStore = create<AuthState>()(
         const { data: { subscription } } = auth.onAuthStateChange((authUser) => {
           const user = authUser && 'user_metadata' in authUser ? (() => {
             const meta = (authUser as { user_metadata: UserMetadata }).user_metadata;
+            // ✅ Determinar rol basado en el email
+            const determinedRole = determineRoleFromEmail(authUser.email!);
+            
             return {
               id: authUser.id,
               email: authUser.email!,
               full_name: meta.full_name || 'Usuario Demo',
               avatar_url: meta.avatar_url || '',
-              role: meta.role || 'client',
+              role: determinedRole, // Usar el rol determinado por el email
               advisor_id: meta.advisor_id || '',
             };
           })() : null;
@@ -174,6 +212,7 @@ export const useAuthStore = create<AuthState>()(
           if (user && typeof window !== 'undefined') {
             document.cookie = `auth-session=true; path=/`;
             document.cookie = `user-role=${user.role}; path=/`;
+            document.cookie = `user-email=${user.email}; path=/`;
           }
         });
 

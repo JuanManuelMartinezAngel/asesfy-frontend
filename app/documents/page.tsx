@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { notifyAdvisorOfClientDocument } from '@/lib/advisor-utils';
 
 // ✅ Interfaz adaptada a la tabla documents de Supabase
 interface Document {
@@ -280,6 +281,17 @@ export default function DocumentsPage() {
       }
 
       toast.success('Documento subido con éxito');
+      
+      // ✅ Notificar al asesor del nuevo documento
+      try {
+        await notifyAdvisorOfClientDocument(
+          documentData.client_id,
+          documentData.file.name
+        );
+      } catch (notificationError) {
+        console.error('Error sending notification to advisor:', notificationError);
+        // No fallar el proceso por errores de notificación
+      }
       
       // Recargar documentos para mostrar el nuevo
       await loadDocuments();
