@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'react-hot-toast';
 import {
   Bot,
   MessageSquare,
@@ -20,7 +21,9 @@ import {
   TrendingUp,
   FileText,
   Calculator,
-  Calendar
+  Calendar,
+  User,
+  Loader2
 } from 'lucide-react';
 
 type Template = {
@@ -32,9 +35,31 @@ type Template = {
   icon: any;
 };
 
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface ChatResponse {
+  message: string;
+  suggestedServices?: string[];
+}
+
 const ChatIA = () => {
   const [message, setMessage] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: '¡Hola! Soy tu asistente IA especializado en temas fiscales y contables. ¿En qué puedo ayudarte hoy? Puedes usar las plantillas de consulta o hacerme cualquier pregunta.',
+      timestamp: new Date()
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Mock data para estadísticas
   const stats = {
@@ -105,9 +130,115 @@ const ChatIA = () => {
     }
   ];
 
+  // ✅ Scroll automático al final de los mensajes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // ✅ Función para enviar mensaje a la API de ChatGPT
+  const sendMessage = async (messageContent: string) => {
+    if (!messageContent.trim()) {
+      toast.error('Por favor, escribe un mensaje');
+      return;
+    }
+
+    // Añadir mensaje del usuario
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: messageContent,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setMessage('');
+    setSelectedTemplate(null);
+    setIsLoading(true);
+
+    try {
+      // Preparar mensajes para la API
+      const apiMessages = [...messages, userMessage].map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      // Llamar a la API
+      const response = await fetch('/api/chatgpt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor');
+      }
+
+      const data: ChatResponse = await response.json();
+
+      // Añadir respuesta del asistente
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Mostrar servicios sugeridos si los hay
+      if (data.suggestedServices && data.suggestedServices.length > 0) {
+        toast.success('¡He encontrado algunos servicios que podrían interesarte!');
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Error al enviar el mensaje. Inténtalo de nuevo.');
+      
+      // Mensaje de error del asistente
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo.',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ Manejar envío del formulario
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(message);
+  };
+
+  // ✅ Manejar selección de plantilla
   const handleTemplateSelect = (template: Template) => {
     setSelectedTemplate(template);
     setMessage(template.prompt);
+  };
+
+  // ✅ Limpiar chat
+  const clearChat = () => {
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: '¡Hola! Soy tu asistente IA especializado en temas fiscales y contables. ¿En qué puedo ayudarte hoy?',
+        timestamp: new Date()
+      }
+    ]);
+    setMessage('');
+    setSelectedTemplate(null);
+    toast.success('Chat reiniciado');
   };
 
   const getCategoryColor = (category: string) => {
@@ -319,10 +450,12 @@ const ChatIA = () => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={clearChat}
+                      title="Limpiar chat"
+                    >
                       <History className="h-4 w-4" />
                     </Button>
                   </div>
@@ -332,21 +465,62 @@ const ChatIA = () => {
               <CardContent className="flex-1">
                 {/* Chat Messages Area */}
                 <div className="h-96 mb-4 p-4 bg-gray-50 rounded-lg overflow-y-auto">
-                  <div className="flex items-start space-x-3 mb-4">
-                    <div className="h-8 w-8 bg-[#2FD7B5] rounded-full flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="bg-white p-3 rounded-lg shadow-sm max-w-md">
-                      <p className="text-sm text-gray-700">
-                        ¡Hola! Soy tu asistente IA especializado en temas fiscales y contables. 
-                        ¿En qué puedo ayudarte hoy? Puedes usar las plantillas de consulta o hacerme cualquier pregunta.
-                      </p>
-                    </div>
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div key={msg.id} className={`flex items-start space-x-3 ${
+                        msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                      }`}>
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          msg.role === 'assistant' 
+                            ? 'bg-[#2FD7B5]' 
+                            : 'bg-[#0A1B3D]'
+                        }`}>
+                          {msg.role === 'assistant' ? (
+                            <Bot className="h-4 w-4 text-white" />
+                          ) : (
+                            <User className="h-4 w-4 text-white" />
+                          )}
+                        </div>
+                        <div className={`p-3 rounded-lg shadow-sm max-w-md ${
+                          msg.role === 'assistant' 
+                            ? 'bg-white' 
+                            : 'bg-[#0A1B3D] text-white'
+                        }`}>
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className={`text-xs mt-2 ${
+                            msg.role === 'assistant' ? 'text-gray-500' : 'text-gray-300'
+                          }`}>
+                            {msg.timestamp.toLocaleTimeString('es-ES', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Loading indicator */}
+                    {isLoading && (
+                      <div className="flex items-start space-x-3">
+                        <div className="h-8 w-8 bg-[#2FD7B5] rounded-full flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="bg-white p-3 rounded-lg shadow-sm">
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#2FD7B5]" />
+                            <p className="text-sm text-gray-700">Escribiendo...</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Scroll anchor */}
+                    <div ref={messagesEndRef} />
                   </div>
                 </div>
 
                 {/* Input Area */}
-                <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="flex space-x-2">
                     <div className="flex-1">
                       <Textarea
@@ -354,29 +528,47 @@ const ChatIA = () => {
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         className="min-h-[100px] resize-none"
+                        maxLength={1000}
+                        disabled={isLoading}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                          }
+                        }}
                       />
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Mic className="h-4 w-4" />
-                      </Button>
                       <span className="text-xs text-gray-500">
                         {message.length}/1000 caracteres
                       </span>
+                      {isLoading && (
+                        <span className="text-xs text-[#2FD7B5] flex items-center">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Procesando...
+                        </span>
+                      )}
                     </div>
                     
                     <Button 
+                      type="submit"
                       className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90"
-                      disabled={!message.trim()}
+                      disabled={!message.trim() || isLoading}
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar Consulta
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Enviar Consulta
+                        </>
+                      )}
                     </Button>
                   </div>
                   
@@ -387,6 +579,7 @@ const ChatIA = () => {
                           Usando plantilla: {selectedTemplate.title}
                         </span>
                         <Button 
+                          type="button"
                           variant="ghost" 
                           size="sm"
                           onClick={() => {
@@ -399,7 +592,7 @@ const ChatIA = () => {
                       </div>
                     </div>
                   )}
-                </div>
+                </form>
               </CardContent>
             </Card>
           </div>

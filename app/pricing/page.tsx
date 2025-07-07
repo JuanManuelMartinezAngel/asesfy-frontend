@@ -89,17 +89,17 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12 sm:mb-16 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-12 sm:mb-16 max-w-6xl mx-auto">
           {stripeProducts.map((product, index) => (
             <Card 
               key={product.id} 
               className={`relative border-0 shadow-xl hover:shadow-2xl transition-all duration-300 ${
-                index === 0 
+                index === 1 
                   ? 'ring-2 ring-[#2FD7B5] lg:scale-105' 
                   : 'hover:scale-105'
               }`}
             >
-              {index === 0 && (
+              {index === 1 && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <Badge className="bg-[#2FD7B5] text-white px-4 py-1">
                     <Star className="w-3 h-3 mr-1" />
@@ -127,11 +127,34 @@ export default function PricingPage() {
               
               <CardContent className="p-6 sm:p-8 pt-0">
                 <ul className="space-y-3 mb-6 sm:mb-8">
-                  {product.name === 'Starter Plan' ? (
+                  {product.name === 'Free Plan' ? (
                     <>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm sm:text-base">Hasta 10 facturas mensuales</span>
+                        <span className="text-gray-700 text-sm sm:text-base">Hasta 3 facturas mensuales</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Chat IA ilimitado</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Calculadora fiscal básica</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Acceso limitado al marketplace</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Soporte por comunidad</span>
+                      </li>
+                    </>
+                  ) : product.name === 'Starter Plan' ? (
+                    <>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 text-sm sm:text-base">Hasta 50 facturas mensuales</span>
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
@@ -143,7 +166,7 @@ export default function PricingPage() {
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm sm:text-base">Acceso al marketplace básico</span>
+                        <span className="text-gray-700 text-sm sm:text-base">Acceso completo al marketplace</span>
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
@@ -170,11 +193,11 @@ export default function PricingPage() {
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm sm:text-base">3 consultas mensuales con asesor</span>
+                        <span className="text-gray-700 text-sm sm:text-base">5 consultas mensuales con asesor</span>
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm sm:text-base">Gestión de nóminas básica</span>
+                        <span className="text-gray-700 text-sm sm:text-base">Gestión de nóminas completa</span>
                       </li>
                       <li className="flex items-start">
                         <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5] mr-3 mt-0.5 flex-shrink-0" />
@@ -186,11 +209,19 @@ export default function PricingPage() {
                 
                 {isAuthenticated ? (
                   <Button 
-                    onClick={() => handleSubscribe(product)}
+                    onClick={() => {
+                      if (product.name === 'Free Plan') {
+                        toast.success('¡Ya tienes acceso al plan gratuito!');
+                      } else {
+                        handleSubscribe(product);
+                      }
+                    }}
                     disabled={isLoading}
                     className={`w-full h-12 text-sm sm:text-base font-medium ${
-                      index === 0
+                      index === 1
                         ? 'bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white'
+                        : product.name === 'Free Plan'
+                        ? 'bg-green-500 hover:bg-green-600 text-white'
                         : 'bg-white border-2 border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white'
                     }`}
                   >
@@ -199,6 +230,8 @@ export default function PricingPage() {
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Procesando...
                       </>
+                    ) : product.name === 'Free Plan' ? (
+                      'Comenzar Gratis'
                     ) : (
                       'Elegir Plan'
                     )}
@@ -208,12 +241,14 @@ export default function PricingPage() {
                     <Link href="/login" className="w-full block">
                       <Button 
                         className={`w-full h-12 text-sm sm:text-base font-medium ${
-                          index === 0
+                          index === 1
                             ? 'bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white'
+                            : product.name === 'Free Plan'
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
                             : 'bg-white border-2 border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white'
                         }`}
                       >
-                        Iniciar Sesión para Suscribirse
+                        {product.name === 'Free Plan' ? 'Comenzar Gratis' : 'Iniciar Sesión para Suscribirse'}
                       </Button>
                     </Link>
                     <div className="text-center">
@@ -246,6 +281,9 @@ export default function PricingPage() {
                       Características
                     </th>
                     <th className="text-center p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base min-w-32">
+                      Free
+                    </th>
+                    <th className="text-center p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base min-w-32">
                       Starter
                     </th>
                     <th className="text-center p-4 sm:p-6 font-semibold text-[#0A1B3D] text-sm sm:text-base min-w-32">
@@ -256,26 +294,49 @@ export default function PricingPage() {
                 <tbody className="divide-y divide-gray-200">
                   <tr>
                     <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Facturas mensuales</td>
-                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Hasta 10</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Hasta 3</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Hasta 50</td>
                     <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Ilimitadas</td>
                   </tr>
                   <tr className="bg-gray-50">
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Chat IA</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
+                    </td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
+                    </td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
+                    </td>
+                  </tr>
+                  <tr>
                     <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Declaraciones fiscales</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
                     <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Básicas</td>
                     <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Completas</td>
                   </tr>
-                  <tr>
-                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Consultas con asesor</td>
-                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">1/mes</td>
-                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">3/mes</td>
-                  </tr>
                   <tr className="bg-gray-50">
+                    <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Consultas con asesor</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">1/mes</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">5/mes</td>
+                  </tr>
+                  <tr>
                     <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Soporte</td>
+                    <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Comunidad</td>
                     <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Email</td>
                     <td className="p-4 sm:p-6 text-center text-sm sm:text-base">Prioritario</td>
                   </tr>
-                  <tr>
+                  <tr className="bg-gray-50">
                     <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Gestión de nóminas</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
                     <td className="p-4 sm:p-6 text-center">
                       <span className="text-gray-400 text-sm sm:text-base">—</span>
                     </td>
@@ -283,8 +344,11 @@ export default function PricingPage() {
                       <CheckCircle className="h-5 w-5 text-[#2FD7B5] mx-auto" />
                     </td>
                   </tr>
-                  <tr className="bg-gray-50">
+                  <tr>
                     <td className="p-4 sm:p-6 text-gray-700 text-sm sm:text-base">Análisis fiscal personalizado</td>
+                    <td className="p-4 sm:p-6 text-center">
+                      <span className="text-gray-400 text-sm sm:text-base">—</span>
+                    </td>
                     <td className="p-4 sm:p-6 text-center">
                       <span className="text-gray-400 text-sm sm:text-base">—</span>
                     </td>

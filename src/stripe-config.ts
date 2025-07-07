@@ -10,12 +10,12 @@ export interface StripeProduct {
 
 export const stripeProducts: StripeProduct[] = [
   {
-    id: 'prod_SPJHRcL4Osk5JW',
-    priceId: 'price_1RUUfMJHfrNln9fJu0LG0ppp',
-    name: 'Pro Plan',
-    description: 'Ideal for growing businesses',
+    id: 'free-plan',
+    priceId: 'free',
+    name: 'Free Plan',
+    description: 'Perfecto para empezar y probar la plataforma',
     mode: 'subscription',
-    price: 49.95,
+    price: 0,
     currency: 'EUR'
   },
   {
@@ -25,6 +25,15 @@ export const stripeProducts: StripeProduct[] = [
     description: 'Perfect for freelancers and small businesses',
     mode: 'subscription',
     price: 29.95,
+    currency: 'EUR'
+  },
+  {
+    id: 'prod_SPJHRcL4Osk5JW',
+    priceId: 'price_1RUUfMJHfrNln9fJu0LG0ppp',
+    name: 'Pro Plan',
+    description: 'Ideal for growing businesses',
+    mode: 'subscription',
+    price: 49.95,
     currency: 'EUR'
   }
 ];
