@@ -166,20 +166,9 @@ const ChatIA = () => {
         content: msg.content
       }));
 
-      // Llamar a la API
-      const response = await fetch('/api/chatgpt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messages: apiMessages }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error en la respuesta del servidor');
-      }
-
-      const data: ChatResponse = await response.json();
+      // Usar Edge Function de Supabase en lugar de API local
+      const { callChatGPT } = await import('@/lib/supabase-functions');
+      const data: ChatResponse = await callChatGPT(apiMessages);
 
       // Añadir respuesta del asistente
       const assistantMessage: Message = {
