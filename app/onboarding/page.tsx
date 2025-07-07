@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
 import { Calculator, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { createAdvisorProfile } from '@/lib/supabase-functions';
 
 export default function OnboardingPage() {
   const [fullName, setFullName] = useState('');
@@ -61,22 +62,21 @@ export default function OnboardingPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/advisor/onboarding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fullName, nif, phone }),
+      // Usar Edge Function de Supabase en lugar de API local
+      const result = await createAdvisorProfile({
+        fullName,
+        nif,
+        phone
       });
 
-      if (response.ok) {
+      if (result.success) {
         toast.success('¡Perfil de asesor creado exitosamente!');
         router.push('/dashboard');
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Error al crear el perfil de asesor');
+        toast.error('Error al crear el perfil de asesor');
       }
     } catch (error) {
+      console.error('Advisor profile creation error:', error);
       toast.error('Error inesperado. Inténtalo de nuevo.');
     } finally {
       setIsLoading(false);

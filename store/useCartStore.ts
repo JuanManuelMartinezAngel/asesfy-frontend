@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getCartItems, saveCartItems, deleteCartItem } from '@/lib/supabase-functions';
 
 export interface CartItem {
   id: string;
@@ -20,6 +21,7 @@ interface CartState {
   getTotalPrice: () => number;
   getTotalItems: () => number;
   syncWithServer: () => Promise<void>;
+  loadFromServer: () => Promise<void>;
 }
 
 export const useCartStore = create<CartState>()(
@@ -86,19 +88,38 @@ export const useCartStore = create<CartState>()(
 
       syncWithServer: async () => {
         try {
-          const response = await fetch('/api/cart', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ items: get().items }),
-          });
-
-          if (!response.ok) {
-            console.warn('Failed to sync cart with server');
-          }
+          set({ isLoading: true });
+          
+          // Usar Edge Function de Supabase en lugar de API local
+          await saveCartItems(
+            get().items, 
+            undefined, // userId - se obtiene automáticamente del token
+            undefined  // sessionId - opcional
+          );
         } catch (error) {
           console.warn('Cart sync error:', error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      loadFromServer: async () => {
+        try {
+          set({ isLoading: true });
+          
+          // Cargar items del servidor usando Edge Function
+          const data = await getCartItems(
+            undefined, // userId - se obtiene automáticamente del token
+            undefined  // sessionId - opcional
+          );
+          
+          if (data?.items) {
+            set({ items: data.items });
+          }
+        } catch (error) {
+          console.warn('Failed to load cart from server:', error);
+        } finally {
+          set({ isLoading: false });
         }
       },
     }),
