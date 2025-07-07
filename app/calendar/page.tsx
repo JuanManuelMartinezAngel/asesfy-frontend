@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,19 +25,30 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
+// ✅ Interfaz adaptada a la tabla calendar_events de Supabase
 interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  type: 'meeting' | 'deadline' | 'reminder' | 'appointment';
-  date: string;
-  time: string;
-  duration: number;
-  clientName?: string;
+  event_type: 'meeting' | 'deadline' | 'reminder' | 'holiday' | 'training';
+  start_time: string; // ISO string from TIMESTAMPTZ
+  end_time: string;   // ISO string from TIMESTAMPTZ
   location?: string;
-  isVirtual?: boolean;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  online_meeting_url?: string;
+  organizer_id: string;
+  task_id?: string;
+  is_all_day: boolean;
+  recurrence_rule?: string;
+  status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed';
+  visibility: 'private' | 'shared' | 'public';
+  reminder_minutes?: number[];
+  created_at: string;
+  updated_at: string;
+  // Campos adicionales del JOIN con users
+  organizer_name?: string;
+  organizer_email?: string;
 }
 
 export default function CalendarPage() {
@@ -45,78 +56,119 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Mock events data
-  const mockEvents: CalendarEvent[] = [
-    {
-      id: '1',
-      title: 'Reunión con Juan Pérez',
-      description: 'Revisión de declaración IRPF 2023',
-      type: 'meeting',
-      date: '2024-01-22',
-      time: '10:00',
-      duration: 60,
-      clientName: 'Juan Pérez López',
-      isVirtual: true,
-      status: 'scheduled'
-    },
-    {
-      id: '2',
-      title: 'Vencimiento IVA Q4',
-      description: 'Presentación liquidación IVA cuarto trimestre',
-      type: 'deadline',
-      date: '2024-01-30',
-      time: '23:59',
-      duration: 0,
-      status: 'scheduled'
-    },
-    {
-      id: '3',
-      title: 'Consulta Ana Martín',
-      description: 'Asesoramiento sobre deducciones energéticas',
-      type: 'appointment',
-      date: '2024-01-24',
-      time: '15:30',
-      duration: 45,
-      clientName: 'Ana Martín Sánchez',
-      location: 'Oficina Madrid',
-      status: 'scheduled'
-    },
-    {
-      id: '4',
-      title: 'Recordatorio: Documentos TechStart',
-      description: 'Solicitar documentos contables Q4',
-      type: 'reminder',
-      date: '2024-01-25',
-      time: '09:00',
-      duration: 0,
-      clientName: 'TechStart SL',
-      status: 'scheduled'
-    },
-    {
-      id: '5',
-      title: 'Reunión planificación fiscal',
-      description: 'Estrategia fiscal 2024 con Carlos Ruiz',
-      type: 'meeting',
-      date: '2024-01-26',
-      time: '11:00',
-      duration: 90,
-      clientName: 'Carlos Ruiz Fernández',
-      location: 'Oficina Barcelona',
-      status: 'scheduled'
+  // ✅ Función para obtener el usuario actual
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return null;
     }
-  ];
+  };
 
-  useEffect(() => {
-    const loadEvents = async () => {
+  // ✅ Función para cargar eventos reales desde Supabase
+  const loadEvents = useCallback(async () => {
+    try {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setEvents(mockEvents);
-      setIsLoading(false);
-    };
+      
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('Debes estar autenticado para ver eventos');
+        return;
+      }
 
-    loadEvents();
+      setCurrentUser(user);
+
+      // Consulta real a Supabase con JOIN para obtener datos del organizador
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select(`
+          *,
+          organizer:users!organizer_id(
+            full_name,
+            email
+          )
+        `)
+        .or(`organizer_id.eq.${user.id},visibility.eq.public`)
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('Error loading events:', error);
+        toast.error('Error al cargar eventos');
+        return;
+      }
+
+      // Mapear datos para incluir campos del organizador
+      const mappedEvents = data?.map(event => ({
+        ...event,
+        organizer_name: event.organizer?.full_name,
+        organizer_email: event.organizer?.email
+      })) || [];
+
+      setEvents(mappedEvents);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al cargar eventos');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  // ✅ Función para crear nuevo evento en Supabase
+  const createEvent = async (eventData: Partial<CalendarEvent>) => {
+    try {
+      if (!currentUser) {
+        toast.error('Debes estar autenticado');
+        return false;
+      }
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert([
+          {
+            title: eventData.title,
+            description: eventData.description,
+            event_type: eventData.event_type,
+            start_time: eventData.start_time,
+            end_time: eventData.end_time,
+            location: eventData.location,
+            online_meeting_url: eventData.online_meeting_url,
+            organizer_id: currentUser.id,
+            is_all_day: eventData.is_all_day || false,
+            status: 'scheduled',
+            visibility: eventData.visibility || 'private'
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Error creating event:', error);
+        toast.error('Error al crear evento');
+        return false;
+      }
+
+      toast.success('Evento creado con éxito');
+      
+      // Recargar eventos para mostrar el nuevo
+      await loadEvents();
+      return true;
+
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al crear evento');
+      return false;
+    }
+  };
+
+  // ✅ Cargar eventos al montar el componente
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -128,7 +180,10 @@ export default function CalendarPage() {
 
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return events.filter(event => event.date === dateString);
+    return events.filter(event => {
+      const eventDate = new Date(event.start_time).toISOString().split('T')[0];
+      return eventDate === dateString;
+    });
   };
 
   const getEventTypeColor = (type: string) => {
@@ -136,7 +191,8 @@ export default function CalendarPage() {
       case 'meeting': return 'bg-blue-100 text-blue-800';
       case 'deadline': return 'bg-red-100 text-red-800';
       case 'reminder': return 'bg-yellow-100 text-yellow-800';
-      case 'appointment': return 'bg-green-100 text-green-800';
+      case 'holiday': return 'bg-green-100 text-green-800';
+      case 'training': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -146,7 +202,8 @@ export default function CalendarPage() {
       case 'meeting': return <Video className="h-4 w-4" />;
       case 'deadline': return <CalendarIcon className="h-4 w-4" />;
       case 'reminder': return <Clock className="h-4 w-4" />;
-      case 'appointment': return <User className="h-4 w-4" />;
+      case 'holiday': return <User className="h-4 w-4" />;
+      case 'training': return <User className="h-4 w-4" />;
       default: return <CalendarIcon className="h-4 w-4" />;
     }
   };
@@ -192,14 +249,20 @@ export default function CalendarPage() {
             {day}
           </div>
           <div className="space-y-1">
-            {dayEvents.slice(0, 2).map((event) => (
-              <div
-                key={event.id}
-                className={`text-xs px-1 py-0.5 rounded truncate ${getEventTypeColor(event.type)}`}
-              >
-                {event.time} {event.title}
-              </div>
-            ))}
+            {dayEvents.slice(0, 2).map((event) => {
+              const eventTime = new Date(event.start_time).toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+              return (
+                <div
+                  key={event.id}
+                  className={`text-xs px-1 py-0.5 rounded truncate ${getEventTypeColor(event.event_type)}`}
+                >
+                  {eventTime} {event.title}
+                </div>
+              );
+            })}
             {dayEvents.length > 2 && (
               <div className="text-xs text-gray-500">
                 +{dayEvents.length - 2} más
@@ -215,17 +278,48 @@ export default function CalendarPage() {
 
   const todayEvents = events.filter(event => {
     const today = new Date().toISOString().split('T')[0];
-    return event.date === today;
+    const eventDate = new Date(event.start_time).toISOString().split('T')[0];
+    return eventDate === today;
   });
 
   const upcomingEvents = events
     .filter(event => {
-      const eventDate = new Date(event.date);
+      const eventDate = new Date(event.start_time);
       const today = new Date();
       return eventDate > today;
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     .slice(0, 5);
+
+  // ✅ Función para manejar la creación de eventos desde el formulario
+  const handleCreateEvent = async (formData: FormData) => {
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const event_type = formData.get('type') as CalendarEvent['event_type'];
+    const date = formData.get('date') as string;
+    const time = formData.get('time') as string;
+    const duration = Number(formData.get('duration') || 60);
+    const location = formData.get('location') as string;
+    const isVirtual = formData.get('isVirtual') === 'on';
+
+    // Combinar fecha y hora para crear timestamps
+    const start_time = new Date(`${date}T${time}`).toISOString();
+    const end_time = new Date(new Date(`${date}T${time}`).getTime() + duration * 60000).toISOString();
+
+         const success = await createEvent({
+       title,
+       description,
+       event_type,
+       start_time,
+       end_time,
+       location: isVirtual ? undefined : location,
+       online_meeting_url: isVirtual ? 'https://meet.google.com/new' : undefined,
+       is_all_day: false,
+       visibility: 'private'
+     });
+
+    return success;
+  };
 
   const handleSyncWithGoogleCalendar = () => {
     // Lógica para sincronizar con Google Calendar
@@ -242,7 +336,7 @@ export default function CalendarPage() {
   };
 
   const scheduleReminder = (event: CalendarEvent) => {
-    const eventDate = new Date(event.date + ' ' + event.time);
+    const eventDate = new Date(event.start_time);
     const now = new Date();
     const timeUntilEvent = eventDate.getTime() - now.getTime();
 
@@ -259,11 +353,6 @@ export default function CalendarPage() {
     requestNotificationPermission();
     events.forEach(scheduleReminder);
   }, [events]);
-
-  const handleCreateEvent = (newEvent: CalendarEvent) => {
-    setEvents((prevEvents) => [...prevEvents, newEvent]);
-    toast.success('Evento creado con éxito');
-  };
 
   const handleScheduleMeeting = () => {
     toast.success('Funcionalidad para programar reunión en desarrollo');
@@ -305,7 +394,8 @@ export default function CalendarPage() {
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                  Programar Reunión
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuevo Evento
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -316,23 +406,13 @@ export default function CalendarPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target as HTMLFormElement);
-                    const newEvent = {
-                      id: String(events.length + 1),
-                      title: (formData.get('title') ?? '') as string,
-                      description: (formData.get('description') ?? '') as string,
-                      type: (formData.get('type') ?? 'meeting') as CalendarEvent['type'],
-                      date: (formData.get('date') ?? '') as string,
-                      time: (formData.get('time') ?? '') as string,
-                      duration: Number(formData.get('duration') ?? 0),
-                      clientName: (formData.get('clientName') ?? '') as string,
-                      location: (formData.get('location') ?? '') as string,
-                      isVirtual: formData.get('isVirtual') === 'on',
-                      status: 'scheduled' as CalendarEvent['status'],
-                    };
-                    handleCreateEvent(newEvent);
+                    const success = await handleCreateEvent(formData);
+                    if (success) {
+                      (e.target as HTMLFormElement).reset();
+                    }
                   }}
                   className="space-y-4"
                 >
@@ -356,7 +436,8 @@ export default function CalendarPage() {
                     <option value="meeting">Reunión</option>
                     <option value="deadline">Vencimiento</option>
                     <option value="reminder">Recordatorio</option>
-                    <option value="appointment">Cita</option>
+                    <option value="training">Formación</option>
+                    <option value="holiday">Festivo</option>
                   </select>
                   <input
                     type="date"
@@ -374,12 +455,7 @@ export default function CalendarPage() {
                     type="number"
                     name="duration"
                     placeholder="Duración (minutos)"
-                    className="w-full border border-gray-300 rounded p-2"
-                  />
-                  <input
-                    type="text"
-                    name="clientName"
-                    placeholder="Nombre del Cliente"
+                    defaultValue={60}
                     className="w-full border border-gray-300 rounded p-2"
                   />
                   <input
@@ -402,174 +478,12 @@ export default function CalendarPage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                  Añadir Recordatorio
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Añadir Recordatorio</DialogTitle>
-                  <DialogDescription>
-                    Añade un nuevo recordatorio al calendario
-                  </DialogDescription>
-                </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target as HTMLFormElement);
-                    const newReminder = {
-                      id: String(events.length + 1),
-                      title: (formData.get('title') ?? '') as string,
-                      description: (formData.get('description') ?? '') as string,
-                      type: (formData.get('type') ?? 'reminder') as CalendarEvent['type'],
-                      date: (formData.get('date') ?? '') as string,
-                      time: (formData.get('time') ?? '') as string,
-                      duration: Number(formData.get('duration') ?? 0),
-                      status: 'scheduled' as CalendarEvent['status'],
-                    };
-                    handleCreateEvent(newReminder);
-                  }}
-                  className="space-y-4"
-                >
-                  <input
-                    type="text"
-                    name="title"
-                    placeholder="Título del Recordatorio"
-                    required
-                    className="w-full border border-gray-300 rounded p-2"
-                  />
-                  <textarea
-                    name="description"
-                    placeholder="Descripción"
-                    className="w-full border border-gray-300 rounded p-2"
-                  />
-                  <input
-                    type="date"
-                    name="date"
-                    required
-                    className="w-full border border-gray-300 rounded p-2"
-                  />
-                  <input
-                    type="time"
-                    name="time"
-                    required
-                    className="w-full border border-gray-300 rounded p-2"
-                  />
-                  <Button type="submit" className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                    Añadir Recordatorio
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
             <Link href="/advisor/clients">
               <Button className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
                 Ver Clientes
               </Button>
             </Link>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Evento
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Crear Nuevo Evento</DialogTitle>
-                <DialogDescription>
-                  Añade una nueva cita o recordatorio al calendario
-                </DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target as HTMLFormElement);
-                  const newEvent = {
-                    id: String(events.length + 1),
-                    title: (formData.get('title') ?? '') as string,
-                    description: (formData.get('description') ?? '') as string,
-                    type: (formData.get('type') ?? 'meeting') as CalendarEvent['type'],
-                    date: (formData.get('date') ?? '') as string,
-                    time: (formData.get('time') ?? '') as string,
-                    duration: Number(formData.get('duration') ?? 0),
-                    clientName: (formData.get('clientName') ?? '') as string,
-                    location: (formData.get('location') ?? '') as string,
-                    isVirtual: formData.get('isVirtual') === 'on',
-                    status: 'scheduled' as CalendarEvent['status'],
-                  };
-                  handleCreateEvent(newEvent);
-                }}
-                className="space-y-4"
-              >
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="Título del Evento"
-                  required
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <textarea
-                  name="description"
-                  placeholder="Descripción"
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <select
-                  name="type"
-                  className="w-full border border-gray-300 rounded p-2"
-                  required
-                >
-                  <option value="meeting">Reunión</option>
-                  <option value="deadline">Vencimiento</option>
-                  <option value="reminder">Recordatorio</option>
-                  <option value="appointment">Cita</option>
-                </select>
-                <input
-                  type="date"
-                  name="date"
-                  required
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <input
-                  type="time"
-                  name="time"
-                  required
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <input
-                  type="number"
-                  name="duration"
-                  placeholder="Duración (minutos)"
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <input
-                  type="text"
-                  name="clientName"
-                  placeholder="Nombre del Cliente"
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <input
-                  type="text"
-                  name="location"
-                  placeholder="Ubicación"
-                  className="w-full border border-gray-300 rounded p-2"
-                />
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="isVirtual"
-                    className="mr-2"
-                  />
-                  Evento Virtual
-                </label>
-                <Button type="submit" className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                  Crear Evento
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -642,15 +556,14 @@ export default function CalendarPage() {
                     {todayEvents.map((event) => (
                       <div key={event.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                         <div className="flex-shrink-0 mt-1">
-                          {getEventTypeIcon(event.type)}
+                          {getEventTypeIcon(event.event_type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#0A1B3D] truncate">
                             {event.title}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {event.time}
-                            {event.clientName && ` • ${event.clientName}`}
+                            {new Date(event.start_time).toLocaleTimeString('es-ES')}
                           </p>
                           {event.location && (
                             <div className="flex items-center text-xs text-gray-500 mt-1">
@@ -658,7 +571,7 @@ export default function CalendarPage() {
                               {event.location}
                             </div>
                           )}
-                          {event.isVirtual && (
+                          {event.online_meeting_url && (
                             <div className="flex items-center text-xs text-blue-600 mt-1">
                               <Video className="h-3 w-3 mr-1" />
                               Reunión virtual
@@ -685,24 +598,27 @@ export default function CalendarPage() {
                     {upcomingEvents.map((event) => (
                       <div key={event.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                         <div className="flex-shrink-0 mt-1">
-                          {getEventTypeIcon(event.type)}
+                          {getEventTypeIcon(event.event_type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#0A1B3D] truncate">
                             {event.title}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {new Date(event.date).toLocaleDateString('es-ES')} • {event.time}
+                            {new Date(event.start_time).toLocaleDateString('es-ES')} • {new Date(event.start_time).toLocaleTimeString('es-ES')}
                           </p>
-                          {event.clientName && (
-                            <p className="text-xs text-gray-500">{event.clientName}</p>
+                          {event.location && (
+                            <div className="flex items-center text-xs text-gray-500 mt-1">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {event.location}
+                            </div>
                           )}
-                          <Badge className={`mt-1 ${getEventTypeColor(event.type)}`}>
-                            {event.type === 'meeting' && 'Reunión'}
-                            {event.type === 'deadline' && 'Vencimiento'}
-                            {event.type === 'reminder' && 'Recordatorio'}
-                            {event.type === 'appointment' && 'Cita'}
-                          </Badge>
+                          {event.online_meeting_url && (
+                            <div className="flex items-center text-xs text-blue-600 mt-1">
+                              <Video className="h-3 w-3 mr-1" />
+                              Reunión virtual
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
