@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,64 +17,283 @@ import {
   Users,
   MessageSquare,
   ChevronRight,
+  Bell,
+  Download,
+  PlusCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
+
+// ✅ Interfaces para el dashboard
+interface DashboardStats {
+  totalRevenue: number;
+  totalOrders: number;
+  pendingTasks: number;
+  unreadMessages: number;
+  unreadNotifications: number;
+  recentDocuments: number;
+  upcomingEvents: number;
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'task' | 'order' | 'document' | 'message' | 'notification';
+  title: string;
+  date: string;
+  status: 'completed' | 'pending' | 'in_progress';
+  user_name?: string;
+}
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    pendingTasks: 0,
+    unreadMessages: 0,
+    unreadNotifications: 0,
+    recentDocuments: 0,
+    upcomingEvents: 0,
+  });
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
-  // Mock data for dashboard
-  const stats = {
-    totalSavings: 2340,
-    activeServices: 5,
-    pendingTasks: 3,
-    nextDeadline: '15 Ene 2024',
+  // ✅ Función para obtener el usuario actual
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return null;
+    }
   };
 
-  const recentActivity = [
-    {
-      id: 1,
-      type: 'service',
-      title: 'Declaración IRPF completada',
-      date: '2024-01-10',
-      status: 'completed',
-    },
-    {
-      id: 2,
-      type: 'deadline',
-      title: 'IVA Trimestral - Vencimiento próximo',
-      date: '2024-01-15',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      type: 'document',
-      title: 'Certificado de ingresos subido',
-      date: '2024-01-08',
-      status: 'completed',
-    },
-  ];
+  // ✅ Función para cargar todas las estadísticas del dashboard
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('Debes estar autenticado para ver el dashboard');
+        return;
+      }
 
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: 'IVA 4º Trimestre 2023',
-      date: '2024-01-30',
-      priority: 'high',
-    },
-    {
-      id: 2,
-      title: 'Modelo 303 - IVA',
-      date: '2024-02-20',
-      priority: 'medium',
-    },
-    {
-      id: 3,
-      title: 'Retenciones IRPF',
-      date: '2024-02-20',
-      priority: 'medium',
-    },
-  ];
+      setCurrentUser(user);
+
+      // Parallel queries para mejor performance
+      const promises = [];
+
+      // 1. Stats de órdenes/facturación
+      if (user.user_metadata?.role === 'advisor') {
+        // Advisor: estadísticas de sus clientes
+        const clientsQuery = supabase
+          .from('client_profiles')
+          .select('user_id')
+          .eq('assigned_advisor_id', user.id);
+        
+        promises.push(
+          clientsQuery.then(async ({ data: clientIds }) => {
+            const clientIdsList = clientIds?.map(c => c.user_id) || [];
+            
+            if (clientIdsList.length > 0) {
+              // Órdenes de los clientes del advisor
+              const { data: orders } = await supabase
+                .from('orders')
+                .select('total_amount, status')
+                .in('client_id', clientIdsList);
+              
+              const totalRevenue = orders?.filter(o => o.status === 'paid').reduce((sum, o) => sum + o.total_amount, 0) || 0;
+              const totalOrders = orders?.length || 0;
+              
+              return { totalRevenue, totalOrders };
+            }
+            return { totalRevenue: 0, totalOrders: 0 };
+          })
+        );
+      } else {
+        // Cliente: sus propias órdenes
+        promises.push(
+          supabase
+            .from('orders')
+            .select('total_amount, status')
+            .eq('client_id', user.id)
+            .then(({ data: orders }) => {
+              const totalRevenue = orders?.filter(o => o.status === 'paid').reduce((sum, o) => sum + o.total_amount, 0) || 0;
+              const totalOrders = orders?.length || 0;
+              return { totalRevenue, totalOrders };
+            })
+        );
+      }
+
+      // 2. Tasks pendientes
+      promises.push(
+        supabase
+          .from('tasks')
+          .select('id')
+          .eq(user.user_metadata?.role === 'advisor' ? 'advisor_id' : 'client_id', user.id)
+          .in('status', ['pending', 'in_progress'])
+          .then(({ data }) => ({ pendingTasks: data?.length || 0 }))
+      );
+
+      // 3. Mensajes no leídos
+      promises.push(
+        supabase
+          .from('messages')
+          .select('id')
+          .eq('receiver_id', user.id)
+          .eq('is_read', false)
+          .then(({ data }) => ({ unreadMessages: data?.length || 0 }))
+      );
+
+      // 4. Notificaciones no leídas
+      promises.push(
+        supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_read', false)
+          .then(({ data }) => ({ unreadNotifications: data?.length || 0 }))
+      );
+
+      // 5. Documentos recientes (últimos 7 días)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      promises.push(
+        supabase
+          .from('documents')
+          .select('id')
+          .eq(user.user_metadata?.role === 'advisor' ? 'uploaded_by' : 'client_id', user.id)
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .then(({ data }) => ({ recentDocuments: data?.length || 0 }))
+      );
+
+      // 6. Eventos próximos (próximos 30 días)
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      
+      promises.push(
+        supabase
+          .from('calendar_events')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('start_time', new Date().toISOString())
+          .lte('start_time', thirtyDaysFromNow.toISOString())
+          .then(({ data }) => ({ upcomingEvents: data?.length || 0 }))
+      );
+
+      // Ejecutar todas las queries en paralelo
+      const results = await Promise.all(promises);
+
+      // Combinar resultados
+      const newStats: DashboardStats = {
+        totalRevenue: 0,
+        totalOrders: 0,
+        pendingTasks: 0,
+        unreadMessages: 0,
+        unreadNotifications: 0,
+        recentDocuments: 0,
+        upcomingEvents: 0,
+      };
+
+      results.forEach(result => {
+        Object.assign(newStats, result);
+      });
+
+      setStats(newStats);
+
+      // Cargar actividad reciente y eventos próximos
+      await loadRecentActivity(user);
+      await loadUpcomingEvents(user);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Error al cargar datos del dashboard');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ✅ Función para cargar actividad reciente
+  const loadRecentActivity = async (user: any) => {
+    try {
+      const activities: RecentActivity[] = [];
+
+      // Tareas recientes
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('id, title, status, updated_at, client:users!client_id(full_name)')
+        .eq(user.user_metadata?.role === 'advisor' ? 'advisor_id' : 'client_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(3);
+
+      tasks?.forEach((task: any) => {
+        activities.push({
+          id: task.id,
+          type: 'task',
+          title: task.title,
+          date: task.updated_at,
+          status: task.status === 'completed' ? 'completed' : task.status === 'in_progress' ? 'in_progress' : 'pending',
+          user_name: task.client?.full_name
+        });
+      });
+
+      // Documentos recientes
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('id, file_name, status, created_at, client:users!client_id(full_name)')
+        .eq(user.user_metadata?.role === 'advisor' ? 'uploaded_by' : 'client_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      docs?.forEach((doc: any) => {
+        activities.push({
+          id: doc.id,
+          type: 'document',
+          title: `Documento: ${doc.file_name}`,
+          date: doc.created_at,
+          status: doc.status === 'processed' ? 'completed' : 'pending',
+          user_name: doc.client?.full_name
+        });
+      });
+
+      // Ordenar por fecha y tomar los más recientes
+      activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRecentActivity(activities.slice(0, 5));
+
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+    }
+  };
+
+  // ✅ Función para cargar eventos próximos
+  const loadUpcomingEvents = async (user: any) => {
+    try {
+      const { data: events } = await supabase
+        .from('calendar_events')
+        .select('id, title, start_time, event_type')
+        .eq('user_id', user.id)
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true })
+        .limit(3);
+
+      setUpcomingEvents(events || []);
+
+    } catch (error) {
+      console.error('Error loading upcoming events:', error);
+    }
+  };
+
+  // ✅ Cargar datos al montar el componente
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const quickActions = [
     {
@@ -100,17 +319,40 @@ export default function DashboardPage() {
     },
   ];
 
+  // ✅ Mostrar loading spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F5F6F9] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2FD7B5] mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F6F9] py-4 sm:py-6 lg:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0A1B3D] mb-2">
-            ¡Bienvenido de vuelta{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}!
+            ¡Bienvenido de vuelta{currentUser?.user_metadata?.full_name ? `, ${currentUser.user_metadata.full_name.split(' ')[0]}` : ''}!
           </h1>
           <p className="text-gray-600 text-sm sm:text-base">
-            Aquí tienes un resumen de tu actividad fiscal y próximas tareas.
+            {currentUser?.user_metadata?.role === 'advisor' ? 
+              'Panel de gestión para asesores fiscales - Resumen de clientes y actividad' : 
+              'Tu resumen personal de actividad fiscal y próximas tareas'
+            }
           </p>
+          {currentUser?.user_metadata?.role === 'advisor' && (
+            <div className="mt-2">
+              <Badge className="bg-[#2FD7B5] text-white">
+                <Users className="h-3 w-3 mr-1" />
+                Asesor Fiscal
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -118,17 +360,17 @@ export default function DashboardPage() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Ahorro Fiscal
+                {currentUser?.user_metadata?.role === 'advisor' ? 'Ingresos Totales' : 'Total Invertido'}
               </CardTitle>
               <Euro className="h-3 w-3 sm:h-4 sm:w-4 text-[#2FD7B5]" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-[#0A1B3D]">
-                €{stats.totalSavings.toLocaleString()}
+                €{stats.totalRevenue.toLocaleString()}
               </div>
               <p className="text-xs text-gray-500 mt-1 flex items-center">
                 <TrendingUp className="inline h-3 w-3 mr-1" />
-                +12% este mes
+                {currentUser?.user_metadata?.role === 'advisor' ? 'Facturado' : 'Invertido'}
               </p>
             </CardContent>
           </Card>
@@ -136,16 +378,16 @@ export default function DashboardPage() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Servicios Activos
+                {currentUser?.user_metadata?.role === 'advisor' ? 'Total Órdenes' : 'Mis Pedidos'}
               </CardTitle>
               <Users className="h-3 w-3 sm:h-4 sm:w-4 text-[#F4D35E]" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-[#0A1B3D]">
-                {stats.activeServices}
+                {stats.totalOrders}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                2 completados este mes
+                {stats.recentDocuments} documentos recientes
               </p>
             </CardContent>
           </Card>
@@ -167,22 +409,22 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-                Próximo Vencimiento
-              </CardTitle>
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-[#0A1B3D]">
-                {stats.nextDeadline}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                En 5 días
-              </p>
-            </CardContent>
-          </Card>
+                      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
+                  Eventos Próximos
+                </CardTitle>
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-[#0A1B3D]">
+                  {stats.upcomingEvents}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats.unreadNotifications} notificaciones nuevas
+                </p>
+              </CardContent>
+            </Card>
         </div>
 
         {/* Quick Actions - Mobile Only */}
@@ -227,31 +469,47 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3 sm:space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        {activity.status === 'completed' ? (
-                          <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5]" />
-                        ) : (
-                          <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-[#F4D35E]" />
-                        )}
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity) => (
+                      <div key={activity.id} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                        <div className="flex-shrink-0">
+                          {activity.type === 'task' && <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5]" />}
+                          {activity.type === 'document' && <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[#F4D35E]" />}
+                          {activity.type === 'order' && <Euro className="h-4 w-4 sm:h-5 sm:w-5 text-[#0A1B3D]" />}
+                          {activity.type === 'message' && <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-[#2FD7B5]" />}
+                          {activity.type === 'notification' && <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-[#F4D35E]" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#0A1B3D] truncate">
+                            {activity.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(activity.date).toLocaleDateString('es-ES', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                            {activity.user_name && ` • ${activity.user_name}`}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant={activity.status === 'completed' ? 'default' : 
+                                   activity.status === 'in_progress' ? 'secondary' : 'outline'}
+                          className="text-xs"
+                        >
+                          {activity.status === 'completed' ? 'Completado' : 
+                           activity.status === 'in_progress' ? 'En progreso' : 'Pendiente'}
+                        </Badge>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#0A1B3D] truncate">
-                          {activity.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {activity.date}
-                        </p>
-                      </div>
-                      <Badge 
-                        variant={activity.status === 'completed' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {activity.status === 'completed' ? 'Completado' : 'Pendiente'}
-                      </Badge>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm">No hay actividad reciente</p>
+                      <p className="text-xs mt-1">Las actividades aparecerán aquí cuando empieces a usar la plataforma</p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="mt-4 sm:mt-6">
                   <Link href="/orders">
@@ -277,24 +535,36 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3 sm:space-y-4">
-                  {upcomingDeadlines.map((deadline) => (
-                    <div key={deadline.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#0A1B3D] truncate">
-                          {deadline.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {deadline.date}
-                        </p>
+                  {upcomingEvents.length > 0 ? (
+                    upcomingEvents.map((event) => (
+                      <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#0A1B3D] truncate">
+                            {event.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(event.start_time).toLocaleDateString('es-ES', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant={event.event_type === 'meeting' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {event.event_type || 'Evento'}
+                        </Badge>
                       </div>
-                      <Badge 
-                        variant={deadline.priority === 'high' ? 'destructive' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {deadline.priority === 'high' ? 'Urgente' : 'Normal'}
-                      </Badge>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm">No hay eventos próximos</p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="mt-4 sm:mt-6">
                   <Link href="/calendar">
