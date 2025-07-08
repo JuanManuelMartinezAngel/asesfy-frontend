@@ -28,6 +28,15 @@ export const callEdgeFunction = async (
     url += `?${searchParams.toString()}`;
   }
 
+  // Logging detallado para diagnóstico
+  console.log(`🔄 [Edge Function] Llamando a ${functionName}:`, {
+    url,
+    method,
+    hasBody: !!body,
+    bodyPreview: body ? JSON.stringify(body).substring(0, 200) + '...' : null,
+    params
+  });
+
   try {
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -38,6 +47,9 @@ export const callEdgeFunction = async (
     // Añadir token de autorización si existe
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`;
+      console.log(`🔐 [Edge Function] Token de autorización añadido`);
+    } else {
+      console.log(`⚠️ [Edge Function] Sin token de autorización`);
     }
 
     const response = await fetch(url, {
@@ -46,14 +58,38 @@ export const callEdgeFunction = async (
       body: body ? JSON.stringify(body) : undefined,
     });
 
+    console.log(`📡 [Edge Function] Respuesta de ${functionName}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ [Edge Function] Error ${response.status}:`, errorText);
+      
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText, rawResponse: errorText };
+      }
+      
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log(`✅ [Edge Function] ${functionName} exitoso:`, result);
+    return result;
   } catch (error) {
-    console.error(`Edge Function ${functionName} error:`, error);
+    console.error(`💥 [Edge Function] ${functionName} error completo:`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : null,
+      url,
+      method,
+      functionName
+    });
     throw error;
   }
 };
