@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface CalendarEvent {
   id: string;
@@ -45,78 +46,134 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAdvisor } = useAuthStore();
 
-  // Mock events data
-  const mockEvents: CalendarEvent[] = [
-    {
-      id: '1',
-      title: 'Reunión con Juan Pérez',
-      description: 'Revisión de declaración IRPF 2023',
-      type: 'meeting',
-      date: '2024-01-22',
-      time: '10:00',
-      duration: 60,
-      clientName: 'Juan Pérez López',
-      isVirtual: true,
-      status: 'scheduled'
-    },
-    {
-      id: '2',
-      title: 'Vencimiento IVA Q4',
-      description: 'Presentación liquidación IVA cuarto trimestre',
-      type: 'deadline',
-      date: '2024-01-30',
-      time: '23:59',
-      duration: 0,
-      status: 'scheduled'
-    },
-    {
-      id: '3',
-      title: 'Consulta Ana Martín',
-      description: 'Asesoramiento sobre deducciones energéticas',
-      type: 'appointment',
-      date: '2024-01-24',
-      time: '15:30',
-      duration: 45,
-      clientName: 'Ana Martín Sánchez',
-      location: 'Oficina Madrid',
-      status: 'scheduled'
-    },
-    {
-      id: '4',
-      title: 'Recordatorio: Documentos TechStart',
-      description: 'Solicitar documentos contables Q4',
-      type: 'reminder',
-      date: '2024-01-25',
-      time: '09:00',
-      duration: 0,
-      clientName: 'TechStart SL',
-      status: 'scheduled'
-    },
-    {
-      id: '5',
-      title: 'Reunión planificación fiscal',
-      description: 'Estrategia fiscal 2024 con Carlos Ruiz',
-      type: 'meeting',
-      date: '2024-01-26',
-      time: '11:00',
-      duration: 90,
-      clientName: 'Carlos Ruiz Fernández',
-      location: 'Oficina Barcelona',
-      status: 'scheduled'
+  // Mock events data based on user role
+  const getEventsForRole = (): CalendarEvent[] => {
+    if (isAdvisor()) {
+      // Events for advisors (meetings with clients)
+      return [
+        {
+          id: '1',
+          title: 'Reunión con Juan Pérez',
+          description: 'Revisión de declaración IRPF 2023',
+          type: 'meeting',
+          date: '2024-01-22',
+          time: '10:00',
+          duration: 60,
+          clientName: 'Juan Pérez López',
+          isVirtual: true,
+          status: 'scheduled'
+        },
+        {
+          id: '3',
+          title: 'Consulta Ana Martín',
+          description: 'Asesoramiento sobre deducciones energéticas',
+          type: 'appointment',
+          date: '2024-01-24',
+          time: '15:30',
+          duration: 45,
+          clientName: 'Ana Martín Sánchez',
+          location: 'Oficina Madrid',
+          status: 'scheduled'
+        },
+        {
+          id: '4',
+          title: 'Recordatorio: Documentos TechStart',
+          description: 'Solicitar documentos contables Q4',
+          type: 'reminder',
+          date: '2024-01-25',
+          time: '09:00',
+          duration: 0,
+          clientName: 'TechStart SL',
+          status: 'scheduled'
+        },
+        {
+          id: '5',
+          title: 'Reunión planificación fiscal',
+          description: 'Estrategia fiscal 2024 con Carlos Ruiz',
+          type: 'meeting',
+          date: '2024-01-26',
+          time: '11:00',
+          duration: 90,
+          clientName: 'Carlos Ruiz Fernández',
+          location: 'Oficina Barcelona',
+          status: 'scheduled'
+        }
+      ];
+    } else {
+      // Events for clients (appointments with advisors, personal deadlines)
+      return [
+        {
+          id: '1',
+          title: 'Cita con mi asesor fiscal',
+          description: 'Revisión de declaración IRPF 2023',
+          type: 'meeting',
+          date: '2024-01-22',
+          time: '10:00',
+          duration: 60,
+          clientName: 'María García Rodríguez',
+          isVirtual: true,
+          status: 'scheduled'
+        },
+        {
+          id: '2',
+          title: 'Vencimiento IVA Q4',
+          description: 'Presentación liquidación IVA cuarto trimestre',
+          type: 'deadline',
+          date: '2024-01-30',
+          time: '23:59',
+          duration: 0,
+          status: 'scheduled'
+        },
+        {
+          id: '3',
+          title: 'Consulta sobre deducciones',
+          description: 'Asesoramiento sobre deducciones energéticas',
+          type: 'appointment',
+          date: '2024-01-24',
+          time: '15:30',
+          duration: 45,
+          clientName: 'María García Rodríguez',
+          location: 'Oficina Madrid',
+          status: 'scheduled'
+        },
+        {
+          id: '4',
+          title: 'Recordatorio: Enviar documentos',
+          description: 'Enviar documentos contables Q4 a mi asesor',
+          type: 'reminder',
+          date: '2024-01-25',
+          time: '09:00',
+          duration: 0,
+          status: 'scheduled'
+        },
+        {
+          id: '5',
+          title: 'Planificación fiscal 2024',
+          description: 'Reunión para estrategia fiscal del próximo año',
+          type: 'meeting',
+          date: '2024-01-26',
+          time: '11:00',
+          duration: 90,
+          clientName: 'María García Rodríguez',
+          location: 'Oficina Barcelona',
+          status: 'scheduled'
+        }
+      ];
     }
-  ];
+  };
 
   useEffect(() => {
     const loadEvents = async () => {
       setIsLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setEvents(mockEvents);
+      setEvents(getEventsForRole());
       setIsLoading(false);
     };
 
     loadEvents();
-  }, []);
+  }, [isAdvisor]);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();

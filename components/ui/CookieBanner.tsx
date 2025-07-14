@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { X, Settings, Cookie, Shield } from 'lucide-react';
 import Link from 'next/link';
 
+// TypeScript declaration for gtag (avoid conflicts)
+type GtagFunction = (command: string, targetId: string, config?: any) => void;
+
 interface CookiePreferences {
   necessary: boolean;
   functional: boolean;
@@ -82,15 +85,15 @@ export default function CookieBanner() {
     // Google Analytics
     if (prefs.analytics) {
       // Enable Google Analytics
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('consent', 'update', {
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('consent', 'update', {
           analytics_storage: 'granted'
         });
       }
     } else {
       // Disable Google Analytics
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('consent', 'update', {
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('consent', 'update', {
           analytics_storage: 'denied'
         });
       }

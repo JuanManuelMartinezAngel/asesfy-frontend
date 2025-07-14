@@ -9,6 +9,7 @@ import Notifications from '@/components/ui/notifications';
 import CookieBanner from '@/components/ui/CookieBanner';
 import AuthInitializer from '@/components/providers/AuthInitializer';
 import DemoLogin from '@/components/providers/DemoLogin';
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,6 +19,8 @@ export const metadata: Metadata = {
   keywords: 'gestión fiscal, asesoría fiscal, autónomos, empresas, declaración renta, IVA',
 };
 
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-XXXXXXXXXX';
+
 export default function RootLayout({
   children,
 }: {
@@ -25,6 +28,27 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('consent', 'default', {
+              'analytics_storage': 'denied'
+            });
+            gtag('config', '${GA_MEASUREMENT_ID}', {
+              page_title: document.title,
+              page_location: window.location.href,
+            });
+          `}
+        </Script>
+      </head>
       <body className={inter.className}>
         <StoreProvider>
           <AuthInitializer />

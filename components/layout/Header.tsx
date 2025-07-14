@@ -177,16 +177,29 @@ export function Header() {
             <span>Chat con IA</span>
           </div>
         </Link>
-        <Link
-          href="/chat-clientes"
-          className={`${baseClasses} ${pathname === '/chat-clientes' ? activeClasses : ''}`}
-          onClick={() => isMobile && setMobileMenuOpen(false)}
-        >
-          <div className="flex items-center space-x-2">
-            <MessageSquare className="h-4 w-4" />
-            <span>Chat con Clientes</span>
-          </div>
-        </Link>
+        {isAdvisor() ? (
+          <Link
+            href="/chat-clientes"
+            className={`${baseClasses} ${pathname === '/chat-clientes' ? activeClasses : ''}`}
+            onClick={() => isMobile && setMobileMenuOpen(false)}
+          >
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>Chat con Clientes</span>
+            </div>
+          </Link>
+        ) : (
+          <Link
+            href="/chat"
+            className={`${baseClasses} ${pathname === '/chat' ? activeClasses : ''}`}
+            onClick={() => isMobile && setMobileMenuOpen(false)}
+          >
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>Chat con Asesores</span>
+            </div>
+          </Link>
+        )}
       </>
     );
   };

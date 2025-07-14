@@ -56,6 +56,10 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Mock documents data
   const mockDocuments: Document[] = [
@@ -200,6 +204,67 @@ export default function DocumentsPage() {
     toast.success(`Descargando ${document.name}`);
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setSelectedFiles(event.target.files);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      toast.error('Por favor selecciona un archivo');
+      return;
+    }
+    if (!selectedClient) {
+      toast.error('Por favor selecciona un cliente');
+      return;
+    }
+    if (!selectedCategory) {
+      toast.error('Por favor selecciona una categoría');
+      return;
+    }
+
+    setIsUploading(true);
+    
+    // Simulate upload process
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Create new document record
+    const file = selectedFiles[0];
+    const newDocument: Document = {
+      id: Date.now().toString(),
+      name: file.name,
+      type: file.name.split('.').pop() || 'unknown',
+      category: selectedCategory as any,
+      clientId: selectedClient,
+      clientName: getClientNameById(selectedClient),
+      uploadedAt: new Date().toISOString().split('T')[0],
+      size: file.size,
+      status: 'pending'
+    };
+
+    setDocuments(prev => [newDocument, ...prev]);
+    toast.success(`Documento ${file.name} subido correctamente`);
+    
+    // Reset form
+    setSelectedFiles(null);
+    setSelectedClient('');
+    setSelectedCategory('');
+    setIsUploadOpen(false);
+    setIsUploading(false);
+  };
+
+  const getClientNameById = (clientId: string) => {
+    const clientNames: { [key: string]: string } = {
+      'client-1': 'Juan Pérez López',
+      'client-2': 'Ana Martín Sánchez',
+      'client-3': 'TechStart SL',
+      'client-4': 'Carlos Ruiz Fernández',
+      'client-5': 'Laura Sánchez Gómez'
+    };
+    return clientNames[clientId] || 'Cliente Desconocido';
+  };
+
   const handleDelete = (documentId: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== documentId));
     toast.success('Documento eliminado');
@@ -261,17 +326,30 @@ export default function DocumentsPage() {
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                   <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 mb-2">
-                    Arrastra y suelta archivos aquí, o haz clic para seleccionar
+                    {selectedFiles && selectedFiles.length > 0 
+                      ? `${selectedFiles.length} archivo(s) seleccionado(s): ${Array.from(selectedFiles).map(f => f.name).join(', ')}`
+                      : 'Arrastra y suelta archivos aquí, o haz clic para seleccionar'
+                    }
                   </p>
-                  <Button variant="outline">
-                    Seleccionar Archivos
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                  />
+                  <Button variant="outline" asChild>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      Seleccionar Archivos
+                    </label>
                   </Button>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cliente
                   </label>
-                  <Select>
+                  <Select value={selectedClient} onValueChange={setSelectedClient}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar cliente" />
                     </SelectTrigger>
@@ -279,6 +357,8 @@ export default function DocumentsPage() {
                       <SelectItem value="client-1">Juan Pérez López</SelectItem>
                       <SelectItem value="client-2">Ana Martín Sánchez</SelectItem>
                       <SelectItem value="client-3">TechStart SL</SelectItem>
+                      <SelectItem value="client-4">Carlos Ruiz Fernández</SelectItem>
+                      <SelectItem value="client-5">Laura Sánchez Gómez</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -286,7 +366,7 @@ export default function DocumentsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Categoría
                   </label>
-                  <Select>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
@@ -299,8 +379,12 @@ export default function DocumentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button className="w-full bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                  Subir Documento
+                <Button 
+                  className="w-full bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white"
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Subiendo...' : 'Subir Documento'}
                 </Button>
               </div>
             </DialogContent>

@@ -35,6 +35,8 @@ type Template = {
 const ChatIA = () => {
   const [message, setMessage] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [responses, setResponses] = useState<Array<{question: string, answer: string, timestamp: string}>>([]);
 
   // Mock data para estadísticas
   const stats = {
@@ -117,6 +119,39 @@ const ChatIA = () => {
       case 'planificacion': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return;
+
+    setIsLoading(true);
+    const currentMessage = message;
+    setMessage('');
+    setSelectedTemplate(null);
+
+    // Simulate AI response delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Mock AI response based on message content
+    let response = '';
+    if (currentMessage.toLowerCase().includes('irpf') || currentMessage.toLowerCase().includes('renta')) {
+      response = 'Para la declaración de IRPF necesitarás: 1) Certificado de retenciones del trabajo, 2) Justificantes de gastos deducibles, 3) Datos bancarios para domiciliación. El plazo suele ser de abril a junio. ¿Necesitas ayuda con algún aspecto específico?';
+    } else if (currentMessage.toLowerCase().includes('iva')) {
+      response = 'El IVA trimestral se presenta los primeros 20 días naturales de abril, julio, octubre y enero. Necesitarás: facturas emitidas, facturas recibidas, y el modelo 303. El IVA soportado se resta del repercutido. ¿Tienes dudas sobre algún concepto específico?';
+    } else if (currentMessage.toLowerCase().includes('deduccion')) {
+      response = 'Como autónomo puedes deducir: gastos de oficina, suministros, formación, seguros profesionales, amortización de bienes, etc. Es importante conservar todas las facturas. ¿Qué tipo de gastos específicos te interesan?';
+    } else {
+      response = 'Entiendo tu consulta fiscal. Te recomiendo que consultes con tu asesor fiscal para obtener asesoramiento personalizado según tu situación específica. ¿Puedo ayudarte con algo más concreto?';
+    }
+
+    const newResponse = {
+      question: currentMessage,
+      answer: response,
+      timestamp: new Date().toLocaleTimeString()
+    };
+
+    setResponses(prev => [newResponse, ...prev]);
+    setIsLoading(false);
   };
 
   return (
@@ -373,10 +408,11 @@ const ChatIA = () => {
                     
                     <Button 
                       className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90"
-                      disabled={!message.trim()}
+                      disabled={!message.trim() || isLoading}
+                      onClick={handleSendMessage}
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      Enviar Consulta
+                      {isLoading ? 'Enviando...' : 'Enviar Consulta'}
                     </Button>
                   </div>
                   
@@ -403,6 +439,46 @@ const ChatIA = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* AI Responses Section */}
+          {responses.length > 0 && (
+            <div className="col-span-1 lg:col-span-2">
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-[#0A1B3D] flex items-center">
+                    <History className="h-5 w-5 mr-2 text-[#2FD7B5]" />
+                    Respuestas de IA
+                  </CardTitle>
+                  <CardDescription>
+                    Historial de tus consultas y respuestas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {responses.map((response, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-900">Tu consulta:</span>
+                            <span className="text-xs text-gray-500">{response.timestamp}</span>
+                          </div>
+                          <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                            {response.question}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-[#2FD7B5] mb-2 block">Respuesta de IA:</span>
+                          <p className="text-sm text-gray-700">
+                            {response.answer}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>
