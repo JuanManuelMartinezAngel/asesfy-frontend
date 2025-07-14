@@ -307,6 +307,9 @@ export function Header() {
                       {isClient() && (
                         <>
                           <DropdownMenuItem asChild>
+                            <Link href="/tasks">Mis Tareas</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
                             <Link href="/orders">Mis Pedidos</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>

@@ -34,6 +34,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface Document {
   id: string;
@@ -42,13 +43,17 @@ interface Document {
   category: 'irpf' | 'iva' | 'sociedades' | 'nominas' | 'otros';
   clientId: string;
   clientName: string;
+  advisorId: string;
+  advisorName: string;
   uploadedAt: string;
   size: number;
   status: 'pending' | 'reviewed' | 'processed' | 'archived';
   url?: string;
+  taskId?: string;
 }
 
 export default function DocumentsPage() {
+  const { user, isClient } = useAuthStore();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,91 +62,82 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [selectedClient, setSelectedClient] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Mock documents data
-  const mockDocuments: Document[] = [
-    {
-      id: '1',
-      name: 'Certificado_Ingresos_2023.pdf',
-      type: 'pdf',
-      category: 'irpf',
-      clientId: 'client-1',
-      clientName: 'Juan Pérez López',
-      uploadedAt: '2024-01-20',
-      size: 245760,
-      status: 'reviewed'
-    },
-    {
-      id: '2',
-      name: 'Facturas_Q4_2023.zip',
-      type: 'zip',
-      category: 'iva',
-      clientId: 'client-2',
-      clientName: 'Ana Martín Sánchez',
-      uploadedAt: '2024-01-19',
-      size: 1048576,
-      status: 'pending'
-    },
-    {
-      id: '3',
-      name: 'Balance_Situacion_2023.xlsx',
-      type: 'xlsx',
-      category: 'sociedades',
-      clientId: 'client-3',
-      clientName: 'TechStart SL',
-      uploadedAt: '2024-01-18',
-      size: 512000,
-      status: 'processed'
-    },
-    {
-      id: '4',
-      name: 'Nominas_Diciembre_2023.pdf',
-      type: 'pdf',
-      category: 'nominas',
-      clientId: 'client-4',
-      clientName: 'Carlos Ruiz Fernández',
-      uploadedAt: '2024-01-17',
-      size: 327680,
-      status: 'reviewed'
-    },
-    {
-      id: '5',
-      name: 'Gastos_Deducibles_2023.xlsx',
-      type: 'xlsx',
-      category: 'irpf',
-      clientId: 'client-1',
-      clientName: 'Juan Pérez López',
-      uploadedAt: '2024-01-16',
-      size: 204800,
-      status: 'processed'
-    },
-    {
-      id: '6',
-      name: 'Contrato_Alquiler_Local.pdf',
-      type: 'pdf',
-      category: 'otros',
-      clientId: 'client-5',
-      clientName: 'Laura Sánchez Gómez',
-      uploadedAt: '2024-01-15',
-      size: 1572864,
-      status: 'pending'
+  // Redirect if not client
+  useEffect(() => {
+    if (user && !isClient()) {
+      window.location.href = '/advisor/documents';
+      return;
     }
-  ];
+  }, [user, isClient]);
+
+  // Get documents for current client
+  const getClientDocuments = (): Document[] => {
+    if (!user) return [];
+    
+    // These are the client's own documents with their assigned advisor
+    return [
+      {
+        id: '1',
+        name: 'Certificado_Ingresos_2023.pdf',
+        type: 'pdf',
+        category: 'irpf',
+        clientId: user.id,
+        clientName: user.full_name || 'Cliente',
+        advisorId: 'advisor-1',
+        advisorName: 'María García Rodríguez',
+        uploadedAt: '2024-01-20',
+        size: 245760,
+        status: 'reviewed',
+        taskId: 'task-1'
+      },
+      {
+        id: '2',
+        name: 'Facturas_Q4_2023.zip',
+        type: 'zip',
+        category: 'iva',
+        clientId: user.id,
+        clientName: user.full_name || 'Cliente',
+        advisorId: 'advisor-1',
+        advisorName: 'María García Rodríguez',
+        uploadedAt: '2024-01-19',
+        size: 1048576,
+        status: 'pending',
+        taskId: 'task-2'
+      },
+      {
+        id: '3',
+        name: 'Gastos_Deducibles_2023.xlsx',
+        type: 'xlsx',
+        category: 'irpf',
+        clientId: user.id,
+        clientName: user.full_name || 'Cliente',
+        advisorId: 'advisor-1',
+        advisorName: 'María García Rodríguez',
+        uploadedAt: '2024-01-16',
+        size: 204800,
+        status: 'processed',
+        taskId: 'task-3'
+      }
+    ];
+  };
 
   useEffect(() => {
     const loadDocuments = async () => {
+      if (!user) return;
+      
       setIsLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setDocuments(mockDocuments);
-      setFilteredDocuments(mockDocuments);
+      const clientDocuments = getClientDocuments();
+      setDocuments(clientDocuments);
+      setFilteredDocuments(clientDocuments);
       setIsLoading(false);
     };
 
     loadDocuments();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let filtered = documents;
@@ -215,12 +211,12 @@ export default function DocumentsPage() {
       toast.error('Por favor selecciona un archivo');
       return;
     }
-    if (!selectedClient) {
-      toast.error('Por favor selecciona un cliente');
-      return;
-    }
     if (!selectedCategory) {
       toast.error('Por favor selecciona una categoría');
+      return;
+    }
+    if (!user) {
+      toast.error('Error de autenticación');
       return;
     }
 
@@ -229,41 +225,36 @@ export default function DocumentsPage() {
     // Simulate upload process
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Create new document record
+    // Create new document record - automatically assigned to client's advisor
     const file = selectedFiles[0];
     const newDocument: Document = {
       id: Date.now().toString(),
       name: file.name,
       type: file.name.split('.').pop() || 'unknown',
       category: selectedCategory as any,
-      clientId: selectedClient,
-      clientName: getClientNameById(selectedClient),
+      clientId: user.id,
+      clientName: user.full_name || 'Cliente',
+      advisorId: 'advisor-1', // In real app, get from client-advisor relationship
+      advisorName: 'María García Rodríguez',
       uploadedAt: new Date().toISOString().split('T')[0],
       size: file.size,
-      status: 'pending'
+      status: 'pending',
+      taskId: `task-${Date.now()}` // Auto-create task for advisor
     };
 
     setDocuments(prev => [newDocument, ...prev]);
-    toast.success(`Documento ${file.name} subido correctamente`);
+    
+    // Simulate creating task for advisor
+    toast.success(`Documento subido correctamente. Se ha creado una tarea para tu asesor.`);
     
     // Reset form
     setSelectedFiles(null);
-    setSelectedClient('');
     setSelectedCategory('');
     setIsUploadOpen(false);
     setIsUploading(false);
   };
 
-  const getClientNameById = (clientId: string) => {
-    const clientNames: { [key: string]: string } = {
-      'client-1': 'Juan Pérez López',
-      'client-2': 'Ana Martín Sánchez',
-      'client-3': 'TechStart SL',
-      'client-4': 'Carlos Ruiz Fernández',
-      'client-5': 'Laura Sánchez Gómez'
-    };
-    return clientNames[clientId] || 'Cliente Desconocido';
-  };
+
 
   const handleDelete = (documentId: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== documentId));
@@ -345,22 +336,19 @@ export default function DocumentsPage() {
                     </label>
                   </Button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cliente
-                  </label>
-                  <Select value={selectedClient} onValueChange={setSelectedClient}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="client-1">Juan Pérez López</SelectItem>
-                      <SelectItem value="client-2">Ana Martín Sánchez</SelectItem>
-                      <SelectItem value="client-3">TechStart SL</SelectItem>
-                      <SelectItem value="client-4">Carlos Ruiz Fernández</SelectItem>
-                      <SelectItem value="client-5">Laura Sánchez Gómez</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <User className="h-4 w-4 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800">
+                      <strong>Cliente:</strong> {user?.full_name || 'Usuario Cliente'}
+                    </span>
+                  </div>
+                  <div className="flex items-center mt-1">
+                    <User className="h-4 w-4 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800">
+                      <strong>Asesor asignado:</strong> María García Rodríguez
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -491,7 +479,7 @@ export default function DocumentsPage() {
                         <div className="flex items-center space-x-4 mt-1">
                           <div className="flex items-center text-sm text-gray-500">
                             <User className="h-4 w-4 mr-1" />
-                            {document.clientName}
+                            Asesor: {document.advisorName}
                           </div>
                           <div className="flex items-center text-sm text-gray-500">
                             <Calendar className="h-4 w-4 mr-1" />
@@ -516,42 +504,38 @@ export default function DocumentsPage() {
                     </div>
                     
                     <div className="flex items-center space-x-2 ml-4">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" title="Ver documento">
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        title="Descargar documento"
                         onClick={() => handleDownload(document)}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
+                      {document.taskId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          title="Ver estado de la tarea"
+                        >
+                          Ver Tarea
+                        </Button>
+                      )}
                       {document.status === 'pending' && (
-                        <Button
+                        <Button 
+                          variant="outline" 
                           size="sm"
-                          onClick={() => updateDocumentStatus(document.id, 'reviewed')}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => handleDelete(document.id)}
+                          className="text-red-600 hover:text-red-700"
+                          title="Eliminar documento"
                         >
-                          Marcar como Revisado
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
-                      {document.status === 'reviewed' && (
-                        <Button
-                          size="sm"
-                          onClick={() => updateDocumentStatus(document.id, 'processed')}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          Marcar como Procesado
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDelete(document.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>

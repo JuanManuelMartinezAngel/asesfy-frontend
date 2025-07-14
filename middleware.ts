@@ -15,6 +15,7 @@ const protectedRoutes = [
   '/notifications',
   '/settings',
   '/orders',
+  '/tasks',
 ];
 
 // Routes that should redirect to dashboard if user is authenticated
@@ -33,6 +34,7 @@ const clientOnlyRoutes = [
   '/cart', 
   '/orders',
   '/chat',
+  '/tasks',
 ];
 
 export async function middleware(req: NextRequest) {
