@@ -310,6 +310,9 @@ export function Header() {
                             <Link href="/tasks">Mis Tareas</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
+                            <Link href="/invoices">Facturas</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
                             <Link href="/orders">Mis Pedidos</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
@@ -321,6 +324,9 @@ export function Header() {
                         <>
                           <DropdownMenuItem asChild>
                             <Link href="/advisor/calendar">Calendario</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/advisor/billing">Facturación</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href="/advisor/reports">Informes</Link>

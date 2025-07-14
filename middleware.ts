@@ -35,6 +35,7 @@ const clientOnlyRoutes = [
   '/orders',
   '/chat',
   '/tasks',
+  '/invoices',
 ];
 
 export async function middleware(req: NextRequest) {
