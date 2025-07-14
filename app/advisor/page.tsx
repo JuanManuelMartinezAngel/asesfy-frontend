@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useRouter } from 'next/navigation';
 
 interface AdvisorStats {
   totalClients: number;
@@ -53,11 +54,20 @@ interface UpcomingTask {
 }
 
 export default function AdvisorDashboardPage() {
-  const { user } = useAuthStore();
+  const { user, isAdvisor } = useAuthStore();
+  const router = useRouter();
   const [stats, setStats] = useState<AdvisorStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Redirect if not advisor
+  useEffect(() => {
+    if (user && !isAdvisor()) {
+      router.push('/dashboard');
+      return;
+    }
+  }, [user, isAdvisor, router]);
 
   // Mock data
   const mockStats: AdvisorStats = {

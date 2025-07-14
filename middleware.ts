@@ -4,12 +4,14 @@ import type { NextRequest } from 'next/server';
 // Routes that require authentication
 const protectedRoutes = [
   '/dashboard',
-  '/marketplace',
+  '/marketplace', 
   '/cart',
   '/chat',
+  '/chat-ia',
+  '/chat-clientes',
   '/advisor',
   '/documents',
-  '/invoices',
+  '/calendar',
   '/notifications',
   '/settings',
   '/orders',
@@ -21,6 +23,16 @@ const authRoutes = ['/login', '/onboarding', '/forgot-password'];
 // Routes that require advisor role
 const advisorRoutes = [
   '/advisor',
+  '/chat-clientes',
+];
+
+// Routes that are only for clients
+const clientOnlyRoutes = [
+  '/dashboard',
+  '/marketplace',
+  '/cart', 
+  '/orders',
+  '/chat',
 ];
 
 export async function middleware(req: NextRequest) {
@@ -54,6 +66,22 @@ export async function middleware(req: NextRequest) {
     // If user is trying to access advisor routes but is not an advisor
     if (isAuthenticated && advisorRoutes.some(route => pathname.startsWith(route)) && userRole !== 'advisor') {
       return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    // If advisor is trying to access client-only routes, redirect to advisor panel
+    if (isAuthenticated && clientOnlyRoutes.some(route => pathname.startsWith(route)) && userRole === 'advisor') {
+      return NextResponse.redirect(new URL('/advisor', req.url));
+    }
+
+    // Special redirects based on role
+    if (isAuthenticated) {
+      // Redirect /calendar based on role
+      if (pathname === '/calendar') {
+        if (userRole === 'advisor') {
+          return NextResponse.redirect(new URL('/advisor/calendar', req.url));
+        }
+        // For clients, /calendar is allowed as is
+      }
     }
 
     return res;

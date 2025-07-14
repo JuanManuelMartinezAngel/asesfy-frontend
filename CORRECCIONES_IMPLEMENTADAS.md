@@ -2,6 +2,16 @@
 
 ## Resumen de Problemas Corregidos
 
+### ✅ **NUEVA CORRECCIÓN: Lógica de Roles Completamente Reestructurada**
+**Problema:** Solo ciertos correos específicos deben ser asesores, pero todos los demás usuarios deben ser clientes.
+
+**Solución:**
+- **Asesores únicamente**: `asesor1@demo.es`, `asesor2@demo.es`, `asesor3@demo.es`, `asesor4@demo.es`, `asesor5@demo.es`
+- **Clientes**: Todos los demás usuarios (registrados o con otros emails)
+- Eliminado componente `DemoLogin` con credenciales de demostración
+- Middleware actualizado con rutas específicas por rol
+- Validación en páginas críticas para protección adicional
+
 ### ✅ 1. **Problema de Roles en Chat**
 **Problema:** El chat mostraba "Chat con Clientes" para todos los usuarios, cuando los clientes deberían ver "Chat con Asesores".
 
@@ -70,6 +80,30 @@ NEXT_PUBLIC_GA_MEASUREMENT_ID=G-TU-MEASUREMENT-ID
 ### Políticas RLS de Supabase
 Si hay problemas de permisos, ejecutar el script `fix-rls-policies-v2.sql` en la base de datos de Supabase.
 
+## Protección de Rutas Implementada
+
+### Middleware Actualizado (`middleware.ts`)
+- **Rutas solo para asesores**: `/advisor/*`, `/chat-clientes`
+- **Rutas solo para clientes**: `/dashboard`, `/marketplace`, `/cart`, `/orders`, `/chat`  
+- **Rutas comunes**: `/calendar`, `/documents`, `/chat-ia`, `/notifications`, `/settings`
+- **Redirecciones automáticas**: `/calendar` → `/advisor/calendar` para asesores
+
+### Validación en Componentes
+- **`app/advisor/page.tsx`**: Redirige clientes a `/dashboard`
+- **`app/dashboard/page.tsx`**: Redirige asesores a `/advisor`
+- **`app/marketplace/page.tsx`**: Redirige asesores a `/advisor`
+
+### Emails de Asesor Autorizados
+```javascript
+const advisorEmails = [
+  'asesor1@demo.es',
+  'asesor2@demo.es', 
+  'asesor3@demo.es',
+  'asesor4@demo.es',
+  'asesor5@demo.es'
+];
+```
+
 ## Funcionalidades Añadidas
 
 ### Chat con IA
@@ -94,26 +128,38 @@ Si hay problemas de permisos, ejecutar el script `fix-rls-policies-v2.sql` en la
 ## Testing
 Para probar las correcciones:
 
-1. **Roles de Chat:**
-   - Iniciar sesión como cliente → debe ver "Chat con Asesores"
-   - Iniciar sesión como asesor → debe ver "Chat con Clientes"
+### 1. **Roles y Acceso:**
+- **Asesores** (`asesor1@demo.es` hasta `asesor5@demo.es`):
+  - Acceso a: `/advisor`, `/chat-clientes`, `/advisor/calendar`
+  - Redirigido desde: `/dashboard`, `/marketplace`, `/cart` → `/advisor`
+  - Ver: "Chat con Clientes" en navegación
 
-2. **Calendario:**
-   - Cliente: eventos personales y citas con asesor
-   - Asesor: múltiples clientes y tareas de gestión
+- **Clientes** (cualquier otro email):
+  - Acceso a: `/dashboard`, `/marketplace`, `/cart`, `/orders`
+  - Redirigido desde: `/advisor/*` → `/dashboard`
+  - Ver: "Chat con Asesores" en navegación
 
-3. **Chat IA:**
-   - Usar plantillas o escribir consultas con palabras como "IRPF", "IVA", "deducciones"
-   - Verificar respuestas automáticas
+### 2. **Redirecciones Automáticas:**
+- `/calendar` → `/advisor/calendar` para asesores
+- Páginas protegidas redirigen según rol apropiado
 
-4. **Documentos:**
-   - Usar el botón "Subir Documento"
-   - Seleccionar archivo, cliente y categoría
-   - Verificar que aparece en la lista
+### 3. **Funcionalidades por Rol:**
+- **Calendario:**
+  - Cliente: eventos personales y citas con asesor
+  - Asesor: múltiples clientes y tareas de gestión
 
-5. **Google Analytics:**
-   - Verificar en Developer Tools que se cargan los scripts de GA
-   - Comprobar eventos en Google Analytics (puede tardar 24-48h)
+- **Chat IA:**
+  - Usar plantillas o escribir consultas con palabras como "IRPF", "IVA", "deducciones"
+  - Verificar respuestas automáticas
+
+- **Documentos:**
+  - Usar el botón "Subir Documento"
+  - Seleccionar archivo, cliente y categoría
+  - Verificar que aparece en la lista
+
+### 4. **Google Analytics:**
+- Verificar en Developer Tools que se cargan los scripts de GA
+- Comprobar eventos en Google Analytics (puede tardar 24-48h)
 
 ## Notas Técnicas
 - Todas las funcionalidades usan datos mock para demostración

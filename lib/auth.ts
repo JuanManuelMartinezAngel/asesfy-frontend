@@ -38,8 +38,16 @@ export const auth = {
       // Mock successful signin for development with role detection
       let role: 'client' | 'advisor' | 'admin' = 'client';
       
-      // Demo credentials for advisor
-      if (email === 'asesor@asesfy.com' || email.includes('asesor') || email.includes('advisor')) {
+      // Only specific advisor emails are considered advisors
+      const advisorEmails = [
+        'asesor1@demo.es',
+        'asesor2@demo.es', 
+        'asesor3@demo.es',
+        'asesor4@demo.es',
+        'asesor5@demo.es'
+      ];
+      
+      if (advisorEmails.includes(email.toLowerCase())) {
         role = 'advisor';
       }
       
@@ -49,7 +57,7 @@ export const auth = {
             id: 'mock-user', 
             email,
             user_metadata: { 
-              full_name: role === 'advisor' ? 'María García Rodríguez' : 'Usuario Demo',
+              full_name: role === 'advisor' ? 'María García Rodríguez' : 'Usuario Cliente',
               role: role
             }
           },

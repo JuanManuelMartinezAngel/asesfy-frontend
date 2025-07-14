@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useServicesStore } from '@/store/useServicesStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { 
   Search, 
@@ -27,6 +29,8 @@ import {
 } from '@/components/ui/select';
 
 export default function MarketplacePage() {
+  const { user, isClient } = useAuthStore();
+  const router = useRouter();
   const {
     services,
     categories,
@@ -46,6 +50,14 @@ export default function MarketplacePage() {
   useEffect(() => {
     loadServices();
   }, [loadServices]);
+
+  // Redirect if not client
+  useEffect(() => {
+    if (user && !isClient()) {
+      router.push('/advisor');
+      return;
+    }
+  }, [user, isClient, router]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {

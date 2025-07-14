@@ -19,9 +19,19 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, isClient } = useAuthStore();
+  const router = useRouter();
+
+  // Redirect if not client
+  useEffect(() => {
+    if (user && !isClient()) {
+      router.push('/advisor');
+      return;
+    }
+  }, [user, isClient, router]);
 
   // Mock data for dashboard
   const stats = {

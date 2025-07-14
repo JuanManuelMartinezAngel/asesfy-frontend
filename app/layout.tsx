@@ -8,7 +8,6 @@ import { Toaster } from '@/components/ui/sonner';
 import Notifications from '@/components/ui/notifications';
 import CookieBanner from '@/components/ui/CookieBanner';
 import AuthInitializer from '@/components/providers/AuthInitializer';
-import DemoLogin from '@/components/providers/DemoLogin';
 import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -52,7 +51,6 @@ export default function RootLayout({
       <body className={inter.className}>
         <StoreProvider>
           <AuthInitializer />
-          <DemoLogin />
           <Notifications />
           <div className="flex flex-col min-h-screen">
             <Header />
