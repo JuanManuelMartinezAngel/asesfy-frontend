@@ -5,12 +5,12 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useServicesStore } from '@/store/useServicesStore';
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const initializeAuth = useAuthStore(state => state.initialize);
+  const initialize = useAuthStore(state => state.initialize);
   const fetchServices = useServicesStore(state => state.fetchServices);
 
   useEffect(() => {
-    // Initialize auth store
-    initializeAuth();
+    // Initialize auth store and get cleanup function
+    const cleanup = initialize();
     
     // Load services
     fetchServices();
@@ -29,12 +29,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (missingVars.length > 0) {
         console.warn(
           'Missing environment variables:',
-          missingVars.join(', '),
+          missingVars.join(', ') +
           '\nUsing mock data for development.'
         );
       }
     }
-  }, [initializeAuth, fetchServices]);
+
+    // Return cleanup function
+    return cleanup;
+  }, []); // Empty dependency array - initialize only once
 
   return <>{children}</>;
 }
