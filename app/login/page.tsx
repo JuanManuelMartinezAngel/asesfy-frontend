@@ -23,15 +23,33 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
   
-  const { signIn, user, isAuthenticated, isAdvisor, loginDemo } = useAuthStore();
+  const { signIn, user, isAuthenticated, isAdvisor, loginDemo, isLoading: storeLoading, isInitialized } = useAuthStore();
 
-  // Auto-redirect if already authenticated
+  // Auto-redirect if already authenticated - ONLY after store is fully initialized
   useEffect(() => {
+    // Don't redirect if store is still loading or not initialized
+    if (storeLoading || !isInitialized) {
+      return;
+    }
+
+    // Only redirect if user is actually authenticated with user data
     if (isAuthenticated && user) {
       const targetRoute = redirect || (isAdvisor() ? '/advisor' : '/dashboard');
       router.push(targetRoute);
     }
-  }, [isAuthenticated, user, isAdvisor, redirect, router]);
+  }, [isAuthenticated, user, isAdvisor, redirect, router, storeLoading, isInitialized]);
+
+  // Show loading spinner while store is initializing
+  if (storeLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Inicializando...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
