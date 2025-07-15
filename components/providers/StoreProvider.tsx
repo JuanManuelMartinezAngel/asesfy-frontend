@@ -6,14 +6,14 @@ import { useServicesStore } from '@/store/useServicesStore';
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const initializeAuth = useAuthStore(state => state.initialize);
-  const loadServices = useServicesStore(state => state.loadServices);
+  const fetchServices = useServicesStore(state => state.fetchServices);
 
   useEffect(() => {
     // Initialize auth store
     initializeAuth();
     
     // Load services
-    loadServices();
+    fetchServices();
     
     // Environment check
     if (typeof window !== 'undefined') {
@@ -34,7 +34,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         );
       }
     }
-  }, [initializeAuth, loadServices]);
+  }, [initializeAuth, fetchServices]);
 
   return <>{children}</>;
 }

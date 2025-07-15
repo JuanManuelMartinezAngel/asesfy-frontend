@@ -1,22 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
 import { useServicesStore } from '@/store/useServicesStore';
 import { useCartStore } from '@/store/useCartStore';
-import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, 
-  Filter, 
-  ShoppingCart, 
-  Star, 
-  Clock, 
-  CheckCircle,
-  Tag,
-  X,
+  Filter,
+  Star,
+  Clock,
+  Euro,
+  ShoppingCart,
+  Check,
+  Grid,
+  List
 } from 'lucide-react';
 import {
   Select,
@@ -30,32 +31,38 @@ export default function MarketplacePage() {
   const {
     services,
     categories,
-    selectedCategory,
-    searchQuery,
     isLoading,
-    loadServices,
-    filterByCategory,
-    setSearchQuery,
-    getFilteredServices,
+    fetchServices,
+    getServicesByCategory,
+    getPopularServices,
   } = useServicesStore();
 
   const { addItem } = useCartStore();
-  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    loadServices();
-  }, [loadServices]);
+    fetchServices();
+  }, [fetchServices]);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setSearchQuery(localSearchQuery);
-    }, 300);
+  const getFilteredServices = () => {
+    let filtered = services;
 
-    return () => clearTimeout(timeoutId);
-  }, [localSearchQuery, setSearchQuery]);
+    if (searchQuery) {
+      filtered = filtered.filter(service =>
+        service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        service.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
 
-  const filteredServices = getFilteredServices();
+    if (selectedCategory !== 'all') {
+      filtered = getServicesByCategory(selectedCategory);
+    }
+
+    return filtered;
+  };
 
   const handleAddToCart = (service: any) => {
     addItem({
@@ -63,230 +70,205 @@ export default function MarketplacePage() {
       name: service.name,
       price: service.price,
       description: service.description,
-      category: service.category,
+      category: service.category
     });
-    
-    toast.success(`${service.name} añadido al carrito`);
-  };
-
-  const clearFilters = () => {
-    setLocalSearchQuery('');
-    filterByCategory(null);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F6F9] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-[#2FD7B5] mx-auto mb-4"></div>
-          <p className="text-gray-600 text-sm sm:text-base">Cargando servicios...</p>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="h-12 bg-gray-200 rounded mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F6F9] py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#0A1B3D] mb-2">
-            Marketplace de Servicios Fiscales
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Encuentra y contrata los servicios fiscales que necesitas para tu negocio
-          </p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Marketplace de Servicios</h1>
+          <p className="text-gray-600">Encuentra los servicios fiscales que necesitas para tu negocio</p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg mb-6 sm:mb-8">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar servicios fiscales..."
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                className="pl-10 border-gray-300 focus:border-[#2FD7B5] focus:ring-[#2FD7B5] text-sm sm:text-base"
-              />
-              {localSearchQuery && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                  onClick={() => setLocalSearchQuery('')}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <div className="flex-1 sm:max-w-xs">
-                <Select
-                  value={selectedCategory || 'all'}
-                  onValueChange={(value) => filterByCategory(value === 'all' ? null : value)}
-                >
-                  <SelectTrigger className="border-gray-300 focus:border-[#2FD7B5] w-full">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las categorías</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar servicios..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
+              
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+                <Filter className="mr-2 h-4 w-4" />
+                Filtros
+              </Button>
 
-              {/* Active Filters */}
-              {(selectedCategory || localSearchQuery) && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">Filtros activos:</span>
-                  {selectedCategory && (
-                    <Badge variant="secondary" className="text-xs">
-                      {selectedCategory}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto w-auto p-0 ml-1"
-                        onClick={() => filterByCategory(null)}
-                      >
-                        <X className="h-3 w-3" />
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Popular Services */}
+        {getPopularServices().length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+              <Star className="mr-2 h-6 w-6 text-yellow-500" />
+              Servicios Populares
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {getPopularServices().slice(0, 3).map((service) => (
+                <Card key={service.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{service.name}</CardTitle>
+                        <CardDescription>{service.description}</CardDescription>
+                      </div>
+                      <Badge variant="secondary">Popular</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="mr-1 h-4 w-4" />
+                          {service.duration}
+                        </div>
+                        <div className="flex items-center text-2xl font-bold text-gray-900">
+                          <Euro className="mr-1 h-5 w-5" />
+                          {service.price}
+                        </div>
+                      </div>
+                      
+                      <ul className="space-y-1">
+                        {service.features.slice(0, 3).map((feature, index) => (
+                          <li key={index} className="flex items-center text-sm text-gray-600">
+                            <Check className="mr-2 h-3 w-3 text-green-500" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Button className="w-full" onClick={() => handleAddToCart(service)}>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Añadir al Carrito
                       </Button>
-                    </Badge>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="text-xs h-auto py-1 px-2"
-                  >
-                    Limpiar todo
-                  </Button>
-                </div>
-              )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
-        </div>
-
-        {/* Results Summary */}
-        <div className="mb-4 sm:mb-6">
-          <p className="text-gray-600 text-sm sm:text-base">
-            Mostrando {filteredServices.length} servicio{filteredServices.length !== 1 ? 's' : ''}
-            {selectedCategory && ` en ${selectedCategory}`}
-            {localSearchQuery && ` para "${localSearchQuery}"`}
-          </p>
-        </div>
-
-        {/* Services Grid */}
-        {filteredServices.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500 mb-4">
-              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No se encontraron servicios</p>
-              <p className="text-sm">Intenta cambiar los filtros de búsqueda</p>
-            </div>
-            <Button variant="outline" onClick={clearFilters}>
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredServices.map((service) => (
-              <Card key={service.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                <CardHeader className="p-4 sm:p-6 flex-shrink-0">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-[#0A1B3D] mb-2 flex items-start gap-2 text-lg sm:text-xl">
-                        <span className="line-clamp-2">{service.name}</span>
-                        {service.popular && (
-                          <Badge className="bg-[#F4D35E] text-[#0A1B3D] flex-shrink-0 text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            Popular
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription className="text-gray-600 text-sm sm:text-base line-clamp-2">
-                        {service.description}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="text-xl sm:text-2xl font-bold text-[#0A1B3D]">
-                      €{service.price}
-                    </div>
-                    <Badge variant="outline" className="border-[#2FD7B5] text-[#2FD7B5] text-xs">
-                      {service.category}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="p-4 sm:p-6 pt-0 flex flex-col flex-1">
-                  {service.duration && (
-                    <div className="flex items-center text-xs sm:text-sm text-gray-600 mb-4">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {service.duration}
-                    </div>
-                  )}
-
-                  <div className="space-y-2 mb-4 sm:mb-6 flex-1">
-                    {service.features.slice(0, 3).map((feature, index) => (
-                      <div key={index} className="flex items-start text-xs sm:text-sm">
-                        <CheckCircle className="h-4 w-4 text-[#2FD7B5] mr-2 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 line-clamp-2">{feature}</span>
-                      </div>
-                    ))}
-                    {service.features.length > 3 && (
-                      <div className="text-xs sm:text-sm text-gray-500">
-                        +{service.features.length - 3} característica{service.features.length - 3 !== 1 ? 's' : ''} más
-                      </div>
-                    )}
-                  </div>
-
-                  {service.tags && (
-                    <div className="flex flex-wrap gap-1 sm:gap-2 mb-4">
-                      {service.tags.slice(0, 3).map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          <Tag className="h-3 w-3 mr-1" />
-                          {tag}
-                        </Badge>
-                      ))}
-                      {service.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{service.tags.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={() => handleAddToCart(service)}
-                    className="w-full bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white mt-auto text-sm sm:text-base"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Añadir al Carrito
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         )}
 
-        {/* Load More - if needed */}
-        {filteredServices.length > 0 && filteredServices.length >= 20 && (
-          <div className="text-center mt-8">
-            <Button variant="outline" size="lg">
-              Cargar más servicios
-            </Button>
-          </div>
-        )}
+        {/* All Services */}
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Todos los Servicios</h2>
+          
+          {getFilteredServices().length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay servicios disponibles</h3>
+                <p className="text-gray-600">
+                  {services.length === 0 
+                    ? "Aún no hay servicios disponibles" 
+                    : "No se encontraron servicios que coincidan con tu búsqueda"
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className={viewMode === 'grid' 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              : "space-y-4"
+            }>
+              {getFilteredServices().map((service) => (
+                <Card key={service.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{service.name}</CardTitle>
+                        <CardDescription>{service.description}</CardDescription>
+                      </div>
+                      <Badge variant="outline">{service.category}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="mr-1 h-4 w-4" />
+                          {service.duration}
+                        </div>
+                        <div className="flex items-center text-2xl font-bold text-gray-900">
+                          <Euro className="mr-1 h-5 w-5" />
+                          {service.price}
+                        </div>
+                      </div>
+                      
+                      <ul className="space-y-1">
+                        {service.features.slice(0, 3).map((feature, index) => (
+                          <li key={index} className="flex items-center text-sm text-gray-600">
+                            <Check className="mr-2 h-3 w-3 text-green-500" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Button className="w-full" onClick={() => handleAddToCart(service)}>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Añadir al Carrito
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
