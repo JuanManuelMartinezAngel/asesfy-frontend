@@ -44,6 +44,20 @@ const CLIENT_ROUTES = [
   '/chat-clientes',
 ];
 
+// Public routes that should not be redirected by AuthGuard
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/onboarding',
+  '/pricing',
+  '/blog',
+  '/about',
+  '/privacy',
+  '/terms',
+  '/cookies',
+  '/forgot-password',
+];
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,13 +69,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
       return;
     }
 
+    // Don't handle redirects for public routes - let each page handle its own logic
+    const isPublicRoute = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith('/blog/');
+    if (isPublicRoute) {
+      return;
+    }
+
     const isProtectedRoute = PROTECTED_ROUTES.some(route => 
       pathname.startsWith(route)
     );
 
     // If it's a protected route and user is not authenticated
     if (isProtectedRoute && !isAuthenticated) {
-      router.push('/login');
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
 
@@ -76,16 +96,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
       // Check if client is trying to access advisor routes
       if (isClient() && ADVISOR_ROUTES.some(route => pathname.startsWith(route))) {
         router.push('/dashboard');
-        return;
-      }
-
-      // Redirect to appropriate dashboard based on role
-      if (pathname === '/') {
-        if (isAdvisor()) {
-          router.push('/advisor');
-        } else {
-          router.push('/dashboard');
-        }
         return;
       }
     }

@@ -12,6 +12,11 @@
 
 **Causa**: El logout no limpiaba completamente la sesión de Supabase y había inconsistencias en el estado global.
 
+### 3. **🆕 Login se queda cargando y no redirecciona** ⚠️
+**Problema**: Al intentar iniciar sesión, la página se quedaba cargando indefinidamente y no redireccionaba al dashboard.
+
+**Causa**: **Conflicto de redirects** entre el `AuthGuard` y la página de login. Ambos componentes intentaban manejar redirects simultáneamente, causando bucles infinitos o bloqueos.
+
 ## Solución Implementada
 
 ### 1. **Refactorización Completa del Store de Autenticación**
@@ -28,25 +33,67 @@
 - **Gestión correcta del lifecycle** del listener con cleanup adecuado
 - **Estado sincronizado** entre Supabase y la aplicación
 
-### 2. **Nuevos Componentes de Gestión**
+### 2. **🆕 Separación de Responsabilidades de Redirects**
 
-#### **AuthGuard** (`components/providers/AuthGuard.tsx`)
-- Maneja redirects automáticos basados en el estado de autenticación
-- Protege rutas que requieren autenticación
-- Gestiona acceso basado en roles (cliente vs asesor)
-- Muestra estado de carga durante la inicialización
+**Problema Original:**
+```typescript
+// AuthGuard intentaba manejar TODOS los redirects
+if (pathname === '/') {
+  if (isAdvisor()) {
+    router.push('/advisor');
+  } else {
+    router.push('/dashboard');
+  }
+}
+
+// Login page TAMBIÉN intentaba hacer redirects
+useEffect(() => {
+  if (isAuthenticated && user) {
+    const targetRoute = redirect || (isAdvisor() ? '/advisor' : '/dashboard');
+    router.push(targetRoute);
+  }
+}, [isAuthenticated, user, ...]);
+```
+
+**Solución:**
+```typescript
+// AuthGuard SOLO protege rutas - NO maneja redirects de páginas públicas
+const PUBLIC_ROUTES = ['/', '/login', '/onboarding', ...];
+
+if (isPublicRoute) {
+  return; // Deja que cada página maneje su propia lógica
+}
+
+// Cada página maneja sus propios redirects
+// Homepage: Redirecciona usuarios autenticados
+// Login: Redirecciona después del login exitoso
+```
+
+### 3. **Nuevos Componentes de Gestión**
+
+#### **AuthGuard Mejorado** (`components/providers/AuthGuard.tsx`)
+- **Solo protege rutas** que requieren autenticación
+- **NO interfiere** con páginas públicas como `/login` o `/`
+- **Gestiona acceso basado en roles** solo para rutas protegidas
+- **Mejores redirects** con query parameters para volver después del login
+
+#### **Homepage con Auto-Redirect** (`app/page.tsx`)
+- **Convertida a client component** para manejar lógica de redirect
+- **Auto-redirecciona usuarios autenticados** a su dashboard apropiado
+- **Estado de carga** mientras verifica autenticación
+- **No renderiza contenido** si va a redirigir
 
 #### **StoreProvider Mejorado**
 - Inicialización limpia del store de autenticación
 - Gestión correcta del cleanup al desmontar
 - Una sola inicialización por sesión
 
-### 3. **Eliminación de Componentes Conflictivos**
+### 4. **Eliminación de Componentes Conflictivos**
 - **Eliminé `AuthInitializer.tsx`**: Causaba doble inicialización
 - **Eliminé `DemoLogin.tsx`**: Auto-login automático que interfería con el flujo normal
 
-### 4. **Mejoras en el Login**
-- **Auto-redirect** si ya está autenticado
+### 5. **Mejoras en el Login**
+- **Auto-redirect mejorado** si ya está autenticado
 - **Gestión correcta de redirects** después del login exitoso
 - **Mejor UX** con manejo de estados de carga
 - **Demo credentials** organizadas por tabs
@@ -92,14 +139,26 @@ signOut: async () => {
 }
 ```
 
-### ✅ **Protección de Rutas**
+### ✅ **🆕 Protección de Rutas Sin Conflictos**
 ```typescript
 // AuthGuard maneja automáticamente:
 const PROTECTED_ROUTES = ['/dashboard', '/marketplace', '/cart', '/orders', ...];
-const ADVISOR_ROUTES = ['/advisor', '/advisor/dashboard', ...];
-const CLIENT_ROUTES = ['/dashboard', '/marketplace', ...];
+const PUBLIC_ROUTES = ['/', '/login', '/onboarding', ...]; // 🆕 Lista de exclusión
 
-// Redirects automáticos basados en estado y rol
+// Solo intercepta rutas protegidas, no públicas
+const isPublicRoute = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith('/blog/');
+if (isPublicRoute) {
+  return; // Deja que la página maneje su propia lógica
+}
+```
+
+### ✅ **🆕 Redirects por Query Params**
+```typescript
+// Mejor gestión de redirects con query parameters
+if (isProtectedRoute && !isAuthenticated) {
+  router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+  return;
+}
 ```
 
 ### ✅ **Estado de Carga Apropiado**
@@ -123,10 +182,17 @@ if (isLoading || !isInitialized) {
 - **Force reload** para asegurar limpieza total
 - **No más auto-logins** después del logout
 
+### 🆕 **Login Funcional Sin Bucles**
+- **No más páginas que se quedan cargando**
+- **Redirects limpios y directos** al dashboard correcto
+- **Separación clara** de responsabilidades entre componentes
+- **UX fluida** sin bloqueos ni bucles infinitos
+
 ### 🛡️ **Protección Robusta**
 - **Rutas protegidas** automáticamente
 - **Redirects inteligentes** basados en roles
 - **Prevención de acceso** a rutas no autorizadas
+- **Query params** para volver después del login
 
 ### ⚡ **Mejor Performance**
 - **Una sola fuente de verdad** para el estado
@@ -139,10 +205,15 @@ if (isLoading || !isInitialized) {
 ```
 components/
 ├── providers/
-│   ├── AuthGuard.tsx         # Protección de rutas y redirects
+│   ├── AuthGuard.tsx         # 🆕 Solo protección, sin redirects de páginas públicas
 │   └── StoreProvider.tsx     # Inicialización del store
 ├── layout/
 │   └── Header.tsx           # Navbar que consume el estado
+└── ...
+
+app/
+├── page.tsx                 # 🆕 Homepage con auto-redirect para autenticados
+├── login/page.tsx           # 🆕 Login mejorado sin conflictos
 └── ...
 
 store/
@@ -151,6 +222,28 @@ store/
 lib/
 └── auth.ts                  # Funciones de autenticación de Supabase
 ```
+
+## 🆕 Flujo de Autenticación Corregido
+
+### **Escenario 1: Usuario no autenticado visita página protegida**
+1. AuthGuard detecta ruta protegida + no autenticado
+2. Redirecciona a `/login?redirect=/dashboard`
+3. Usuario hace login exitoso
+4. Login page redirecciona a `/dashboard` (del query param)
+
+### **Escenario 2: Usuario no autenticado visita homepage**
+1. AuthGuard detecta ruta pública → **NO hace nada**
+2. Homepage detecta no autenticado → Muestra página de marketing
+
+### **Escenario 3: Usuario autenticado visita homepage**
+1. AuthGuard detecta ruta pública → **NO hace nada**  
+2. Homepage detecta autenticado → **Redirecciona al dashboard apropiado**
+
+### **Escenario 4: Usuario hace login**
+1. Login page procesa credenciales
+2. onAuthStateChange actualiza estado automáticamente
+3. Login page detecta autenticación exitosa → **Redirecciona**
+4. AuthGuard **NO interfiere** porque login es ruta pública
 
 ## Resultados
 
@@ -161,16 +254,16 @@ lib/
 - Sin errores de build-time
 
 ### ✅ **Funcionalidad Completa**
-- **Login/logout funcionan perfectamente**
-- **Navbar se actualiza correctamente en tiempo real**
-- **Redirects automáticos funcionan**
-- **Estado persistente entre recargas**
-- **Protección de rutas activa**
+- **✅ Login/logout funcionan perfectamente** - Sin más páginas cargando
+- **✅ Navbar se actualiza correctamente** en tiempo real
+- **✅ Redirects automáticos funcionan** sin bucles ni conflictos
+- **✅ Estado persistente** entre recargas
+- **✅ Protección de rutas** activa sin interferencias
 
 ### ✅ **UX Mejorada**
 - **Estados de carga apropiados**
 - **Feedback visual correcto**
-- **Navegación fluida**
+- **Navegación fluida** sin bloqueos
 - **Coherencia en toda la app**
 
 ## Instrucciones de Uso
@@ -178,6 +271,18 @@ lib/
 1. **El sistema funciona automáticamente** - no requiere configuración adicional
 2. **Para desarrollo**: Usar los botones de demo en login
 3. **Para producción**: Asegurar que las variables de entorno de Supabase estén configuradas
-4. **El AuthGuard maneja todo automáticamente**: redirects, protección, estado de carga
+4. **El AuthGuard maneja todo automáticamente**: protección, redirects por roles, estado de carga
 
-La solución es **robusta, escalable y mantiene la funcionalidad existente** mientras resuelve completamente los problemas de sincronización de autenticación.
+## 🎯 **Problema Específico Resuelto**
+
+**❌ ANTES**: Login se quedaba cargando indefinidamente
+```
+Usuario hace login → AuthGuard intenta redirect → Login page intenta redirect → BUCLE INFINITO
+```
+
+**✅ AHORA**: Login redirecciona correctamente
+```
+Usuario hace login → Login page maneja redirect → Usuario llega al dashboard → AuthGuard protege rutas futuras
+```
+
+La solución es **robusta, escalable y mantiene la funcionalidad existente** mientras resuelve completamente los problemas de sincronización de autenticación **y el problema específico del login que se quedaba cargando**. 🎉
