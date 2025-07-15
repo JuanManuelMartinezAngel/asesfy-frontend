@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import supabase from './supabase';
 
 export interface User {
   id: string;
@@ -11,14 +11,6 @@ export interface User {
 
 export const auth = {
   async signUp(email: string, password: string, fullName?: string, role: 'client' | 'advisor' = 'client') {
-    if (!isSupabaseConfigured()) {
-      // Mock successful signup for development
-      return {
-        data: { user: { id: 'mock-user', email, user_metadata: { full_name: fullName, role } } },
-        error: null
-      };
-    }
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -34,31 +26,6 @@ export const auth = {
   },
 
   async signIn(email: string, password: string) {
-    if (!isSupabaseConfigured()) {
-      // Mock successful signin for development with role detection
-      let role: 'client' | 'advisor' | 'admin' = 'client';
-      
-      // Demo credentials for advisor
-      if (email === 'asesor@asesfy.com' || email.includes('asesor') || email.includes('advisor')) {
-        role = 'advisor';
-      }
-      
-      return {
-        data: { 
-          user: { 
-            id: 'mock-user', 
-            email,
-            user_metadata: { 
-              full_name: role === 'advisor' ? 'María García Rodríguez' : 'Usuario Demo',
-              role: role
-            }
-          },
-          session: { access_token: 'mock-token' }
-        },
-        error: null
-      };
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -68,28 +35,16 @@ export const auth = {
   },
 
   async signOut() {
-    if (!isSupabaseConfigured()) {
-      return { error: null };
-    }
-
     const { error } = await supabase.auth.signOut();
     return { error };
   },
 
   async getUser() {
-    if (!isSupabaseConfigured()) {
-      return { user: null, error: null };
-    }
-
     const { data: { user }, error } = await supabase.auth.getUser();
     return { user, error };
   },
 
   async resetPassword(email: string) {
-    if (!isSupabaseConfigured()) {
-      return { data: {}, error: null };
-    }
-
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback`,
     });
@@ -98,18 +53,6 @@ export const auth = {
   },
 
   onAuthStateChange(callback: (user: User | null) => void) {
-    if (!isSupabaseConfigured()) {
-      // Mock auth state change
-      setTimeout(() => callback(null), 100);
-      return { 
-        data: { 
-          subscription: { 
-            unsubscribe: () => {} 
-          } 
-        } 
-      };
-    }
-
     return supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ? {
         id: session.user.id,
