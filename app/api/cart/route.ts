@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import supabase, { isSupabaseConfigured } from '@/lib/supabase';
+
+// Force this route to be dynamic
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+// Mock cart data for fallback when Supabase is not configured
+let mockCart: any[] = [];
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +16,12 @@ export async function GET(request: NextRequest) {
 
     if (!userId && !sessionId) {
       return NextResponse.json({ error: 'User ID or Session ID required' }, { status: 400 });
+    }
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, using mock cart data');
+      return NextResponse.json({ items: mockCart });
     }
 
     const { data, error } = await supabase
@@ -35,6 +48,13 @@ export async function POST(request: NextRequest) {
 
     if (!userId && !sessionId) {
       return NextResponse.json({ error: 'User ID or Session ID required' }, { status: 400 });
+    }
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, using mock cart storage');
+      mockCart = items;
+      return NextResponse.json({ success: true, data: mockCart });
     }
 
     const { data, error } = await supabase
@@ -69,6 +89,13 @@ export async function DELETE(request: NextRequest) {
 
     if (!itemId) {
       return NextResponse.json({ error: 'Item ID required' }, { status: 400 });
+    }
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase not configured, using mock cart deletion');
+      mockCart = mockCart.filter(item => item.id !== itemId);
+      return NextResponse.json({ success: true });
     }
 
     const { error } = await supabase
