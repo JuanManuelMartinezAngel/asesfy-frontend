@@ -1,181 +1,209 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  CheckCircle, 
-  Calculator, 
-  Download, 
-  Calendar,
-  Users,
-  MessageSquare,
-  ArrowRight,
-  Gift,
-  Star
-} from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Download, Calendar, CreditCard } from 'lucide-react';
+import Link from 'next/link';
+import supabase from '@/lib/supabase';
+
+interface OrderDetails {
+  id: string;
+  date: string;
+  plan: string;
+  amount: number;
+  nextBilling: string;
+  features: string[];
+}
 
 export default function CheckoutSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCartStore();
   const { user } = useAuthStore();
-  const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get session_id from URL params
-  const sessionId = searchParams.get('session_id');
-  const planType = searchParams.get('plan') || 'starter';
-
   useEffect(() => {
-    // Simulate loading order details
-    const loadOrderDetails = async () => {
-      setIsLoading(true);
-      
-      // Clear cart after successful purchase
-      clearCart();
-      
-      // Mock order details
-      const mockOrder = {
-        id: 'ASF-2024-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-        date: new Date().toISOString(),
-        plan: planType === 'pro' ? 'Pro Plan' : 'Starter Plan',
-        amount: planType === 'pro' ? 49.95 : 29.95,
-        nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        features: planType === 'pro' ? [
-          'Facturas ilimitadas',
-          'Declaraciones completas', 
-          'Soporte prioritario',
-          'Acceso completo al marketplace',
-          '3 consultas mensuales con asesor',
-          'Gestión de nóminas básica',
-          'Análisis fiscal personalizado'
-        ] : [
-          'Hasta 10 facturas mensuales',
-          'Declaraciones trimestrales básicas',
-          'Soporte por email',
-          'Acceso al marketplace básico',
-          '1 consulta mensual con asesor'
-        ]
-      };
-      
-      setOrderDetails(mockOrder);
-      setIsLoading(false);
+    const sessionId = searchParams.get('session_id');
+    const orderId = searchParams.get('order_id');
+
+    if (!sessionId && !orderId) {
+      router.push('/pricing');
+      return;
+    }
+
+    const fetchOrderDetails = async () => {
+      try {
+        // Clear cart after successful purchase
+        clearCart();
+        
+        // Fetch order details from Supabase
+        let orderData;
+        
+        if (orderId) {
+          const { data, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+            
+          if (error) throw error;
+          orderData = data;
+        } else {
+          // If no orderId, create a basic order record
+          const { data, error } = await supabase
+            .from('orders')
+            .insert({
+              user_id: user?.id,
+              session_id: sessionId,
+              status: 'completed',
+              created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+            
+          if (error) throw error;
+          orderData = data;
+        }
+
+        // Fetch subscription details if available
+        const { data: subscriptionData } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        setOrderDetails({
+          id: orderData.id,
+          date: orderData.created_at,
+          plan: subscriptionData?.plan_type || 'Basic Plan',
+          amount: subscriptionData?.amount || 29.95,
+          nextBilling: subscriptionData?.next_billing_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          features: subscriptionData?.features || [
+            'Hasta 10 facturas mensuales',
+            'Declaraciones trimestrales básicas',
+            'Soporte por email',
+            'Acceso al marketplace básico',
+            '1 consulta mensual con asesor'
+          ]
+        });
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+        // Fallback to basic success message without specific details
+        setOrderDetails({
+          id: 'ASF-' + Date.now(),
+          date: new Date().toISOString(),
+          plan: 'Subscription',
+          amount: 0,
+          nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          features: ['Acceso a la plataforma']
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    loadOrderDetails();
-  }, [sessionId, planType, clearCart]);
-
-  const nextSteps = [
-    {
-      icon: Users,
-      title: 'Asignación de Asesor',
-      description: 'En las próximas 24 horas te asignaremos un asesor fiscal personal.',
-      action: 'Ver perfil del asesor',
-      link: '/advisor'
-    },
-    {
-      icon: MessageSquare,
-      title: 'Primera Consulta',
-      description: 'Programa tu primera consulta gratuita para conocer tus necesidades.',
-      action: 'Programar cita',
-      link: '/calendar'
-    },
-    {
-      icon: Download,
-      title: 'Subir Documentos',
-      description: 'Comparte tus documentos fiscales de forma segura en nuestra plataforma.',
-      action: 'Subir documentos',
-      link: '/documents'
-    }
-  ];
+    fetchOrderDetails();
+  }, [searchParams, router, clearCart, user]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F6F9] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2FD7B5] mx-auto mb-4"></div>
-          <p className="text-gray-600">Procesando tu pedido...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Procesando tu compra...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!orderDetails) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">Error al procesar la compra</p>
+          <Button asChild className="mt-4">
+            <Link href="/pricing">Volver a Precios</Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F6F9] py-12">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Success */}
-        <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-12 w-12 text-green-600" />
+        {/* Success Header */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <CheckCircle className="h-16 w-16 text-green-600" />
           </div>
-          <h1 className="text-4xl font-bold text-[#0A1B3D] mb-4">
-            ¡Suscripción Exitosa!
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            ¡Compra Realizada con Éxito!
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Gracias por confiar en Asesfy. Tu cuenta ha sido activada y ya puedes 
-            empezar a disfrutar de todos nuestros servicios fiscales.
+          <p className="text-xl text-gray-600">
+            Tu suscripción ha sido activada correctamente
           </p>
         </div>
 
-        {/* Order Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          <Card className="border-0 shadow-lg">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Order Details */}
+          <Card>
             <CardHeader>
-              <CardTitle className="text-[#0A1B3D] flex items-center">
-                <Calculator className="h-6 w-6 mr-3 text-[#2FD7B5]" />
-                Detalles de tu Suscripción
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Detalles de la Compra
               </CardTitle>
+              <CardDescription>
+                Información de tu pedido #{orderDetails.id}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Número de pedido:</span>
-                <span className="font-semibold text-[#0A1B3D]">{orderDetails?.id}</span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-600">Plan:</span>
+                <Badge variant="secondary">{orderDetails.plan}</Badge>
               </div>
               
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Plan seleccionado:</span>
-                <Badge className="bg-[#2FD7B5] text-white">{orderDetails?.plan}</Badge>
-              </div>
-              
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Importe:</span>
-                <span className="font-semibold text-[#0A1B3D]">€{orderDetails?.amount}/mes</span>
+                <span className="font-semibold">€{orderDetails.amount.toFixed(2)}</span>
               </div>
               
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Fecha de inicio:</span>
-                <span className="text-[#0A1B3D]">
-                  {new Date(orderDetails?.date).toLocaleDateString('es-ES')}
-                </span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-600">Fecha de compra:</span>
+                <span>{new Date(orderDetails.date).toLocaleDateString('es-ES')}</span>
               </div>
               
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between py-2">
                 <span className="text-gray-600">Próxima facturación:</span>
-                <span className="text-[#0A1B3D]">
-                  {new Date(orderDetails?.nextBilling).toLocaleDateString('es-ES')}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  {new Date(orderDetails.nextBilling).toLocaleDateString('es-ES')}
                 </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg">
+          {/* Plan Features */}
+          <Card>
             <CardHeader>
-              <CardTitle className="text-[#0A1B3D] flex items-center">
-                <Star className="h-6 w-6 mr-3 text-[#2FD7B5]" />
-                Características Incluidas
-              </CardTitle>
+              <CardTitle>Tu Plan Incluye</CardTitle>
+              <CardDescription>
+                Características de tu suscripción
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
-                {orderDetails?.features.map((feature: string, index: number) => (
-                  <li key={index} className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-[#2FD7B5] mt-0.5 flex-shrink-0" />
+                {orderDetails.features.map((feature, index) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{feature}</span>
                   </li>
                 ))}
@@ -184,143 +212,89 @@ export default function CheckoutSuccessPage() {
           </Card>
         </div>
 
-        {/* Welcome Benefits */}
-        <Card className="border-0 shadow-lg mb-12">
-          <CardHeader>
-            <CardTitle className="text-[#0A1B3D] flex items-center">
-              <Gift className="h-6 w-6 mr-3 text-[#2FD7B5]" />
-              Beneficios de Bienvenida
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-6 bg-green-50 rounded-lg">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Gift className="h-6 w-6 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-[#0A1B3D] mb-2">30 Días Gratis</h3>
-                <p className="text-sm text-gray-600">
-                  Tu primer mes está incluido. Solo pagarás a partir del segundo mes.
-                </p>
-              </div>
-              
-              <div className="text-center p-6 bg-blue-50 rounded-lg">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-[#0A1B3D] mb-2">Consulta Gratuita</h3>
-                <p className="text-sm text-gray-600">
-                  Primera sesión de 1 hora con tu asesor sin coste adicional.
-                </p>
-              </div>
-              
-              <div className="text-center p-6 bg-purple-50 rounded-lg">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Download className="h-6 w-6 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-[#0A1B3D] mb-2">Guía de Inicio</h3>
-                <p className="text-sm text-gray-600">
-                  Material exclusivo para optimizar tu gestión fiscal desde el día 1.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Next Steps */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-[#0A1B3D] text-center mb-8">
-            Próximos Pasos
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {nextSteps.map((step, index) => (
-              <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-[#2FD7B5]/10 rounded-full flex items-center justify-center">
-                      <step.icon className="h-5 w-5 text-[#2FD7B5]" />
-                    </div>
-                    <div className="w-6 h-6 bg-[#0A1B3D] text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                      {index + 1}
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-[#0A1B3D] mb-2">
-                    {step.title}
-                  </h3>
-                  
-                  <p className="text-gray-600 text-sm mb-4">
-                    {step.description}
-                  </p>
-                  
-                  <Link href={step.link}>
-                    <Button variant="outline" size="sm" className="w-full border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white">
-                      {step.action}
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+        {/* Action Buttons */}
+        <div className="mt-8 text-center space-y-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button asChild className="w-full">
+              <Link href="/dashboard">
+                Ir al Dashboard
+              </Link>
+            </Button>
+            
+            <Button variant="outline" className="w-full">
+              <Download className="mr-2 h-4 w-4" />
+              Descargar Factura
+            </Button>
+            
+            <Button variant="outline" asChild className="w-full">
+              <Link href="/settings">
+                Configurar Cuenta
+              </Link>
+            </Button>
+            
+            <Button variant="outline" asChild className="w-full">
+              <Link href="/marketplace">
+                Explorar Servicios
+              </Link>
+            </Button>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <Card className="border-0 shadow-lg">
+        {/* Next Steps */}
+        <Card className="mt-8">
           <CardHeader>
-            <CardTitle className="text-[#0A1B3D] text-center">
-              Accede a tu Dashboard
-            </CardTitle>
+            <CardTitle>Próximos Pasos</CardTitle>
+            <CardDescription>
+              Te recomendamos seguir estos pasos para aprovechar al máximo tu suscripción
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center space-y-4">
-              <p className="text-gray-600">
-                Tu cuenta está lista. Explora todas las funcionalidades disponibles 
-                en tu panel de control personalizado.
-              </p>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-blue-600 font-bold">1</span>
+                </div>
+                <h3 className="font-semibold mb-2">Completa tu Perfil</h3>
+                <p className="text-sm text-gray-600">
+                  Añade tu información fiscal para personalizar tu experiencia
+                </p>
+              </div>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/dashboard">
-                  <Button className="bg-[#2FD7B5] hover:bg-[#2FD7B5]/90 text-white">
-                    Ir al Dashboard
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-                
-                <Link href="/marketplace">
-                  <Button variant="outline" className="border-[#2FD7B5] text-[#2FD7B5] hover:bg-[#2FD7B5] hover:text-white">
-                    Explorar Servicios
-                  </Button>
-                </Link>
-                
-                <Link href="/chat-ia">
-                  <Button variant="outline">
-                    Probar Chat IA
-                  </Button>
-                </Link>
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-green-600 font-bold">2</span>
+                </div>
+                <h3 className="font-semibold mb-2">Conecta tus Cuentas</h3>
+                <p className="text-sm text-gray-600">
+                  Vincula tus cuentas bancarias para automatizar la gestión
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-purple-600 font-bold">3</span>
+                </div>
+                <h3 className="font-semibold mb-2">Agenda tu Primera Consulta</h3>
+                <p className="text-sm text-gray-600">
+                  Programa una sesión con nuestros asesores expertos
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Support Info */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">
-            ¿Tienes alguna pregunta? Nuestro equipo está aquí para ayudarte.
-          </p>
-          <div className="flex justify-center space-x-6 text-sm">
-            <a href="mailto:soporte@asesfy.com" className="text-[#2FD7B5] hover:underline">
+        <div className="mt-8 text-center text-gray-600">
+          <p>
+            ¿Necesitas ayuda? Contacta con nuestro{' '}
+            <Link href="/chat" className="text-blue-600 hover:underline">
+              soporte técnico
+            </Link>{' '}
+            o envíanos un email a{' '}
+            <a href="mailto:soporte@asesfy.com" className="text-blue-600 hover:underline">
               soporte@asesfy.com
             </a>
-            <span className="text-gray-400">•</span>
-            <a href="tel:+34900123456" className="text-[#2FD7B5] hover:underline">
-              +34 900 123 456
-            </a>
-            <span className="text-gray-400">•</span>
-            <Link href="/chat-clientes" className="text-[#2FD7B5] hover:underline">
-              Chat en vivo
-            </Link>
-          </div>
+          </p>
         </div>
       </div>
     </div>

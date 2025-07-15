@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// Force this route to be dynamic
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key',
 });

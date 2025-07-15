@@ -1,70 +1,102 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Configuración de Supabase - usando credenciales reales
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tjnuiedpoulujfqzsdmx.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqbnVpZWRwb3VsdWpmcXpzZG14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMTY5NzEsImV4cCI6MjA2Njg5Mjk3MX0.IAgwme4KnIHwkUSFBRMGAhLCmK0dgCxjiTaDh4liX4w';
+// More robust build-time detection
+const isBuildTime = typeof window === 'undefined' && (
+  process.env.NODE_ENV === 'production' || 
+  process.env.NEXT_PHASE === 'phase-production-build' ||
+  !process.env.VERCEL_URL
+)
 
-// Mock client for development when Supabase is not configured
-const createMockClient = () => ({
-  auth: {
-    signUp: async (credentials: any) => ({ 
-      data: { user: { id: 'mock-user', email: credentials.email } }, 
-      error: null 
-    }),
-    signInWithPassword: async (credentials: any) => ({ 
-      data: { 
-        user: { 
-          id: 'mock-user', 
-          email: credentials.email,
-          user_metadata: { full_name: 'Usuario Demo' }
-        },
-        session: { access_token: 'mock-token' }
-      }, 
-      error: null 
-    }),
-    signOut: async () => ({ error: null }),
-    getUser: async () => ({ 
-      data: { user: null }, 
-      error: null 
-    }),
-    getSession: async () => ({
-      data: { session: null },
-      error: null
-    }),
-    onAuthStateChange: (callback: any) => {
-      // Simulate auth state change
-      setTimeout(() => callback('SIGNED_OUT', null), 100);
-      return { 
-        data: { 
-          subscription: { 
-            unsubscribe: () => {} 
-          } 
-        } 
-      };
+// Environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Create a function that returns the Supabase client or a mock
+function createSupabaseClient(): SupabaseClient {
+  // If we're in build time or don't have proper env vars, create a mock client
+  if (!supabaseUrl || !supabaseAnonKey || 
+      supabaseUrl.includes('placeholder') || 
+      supabaseUrl === 'https://placeholder.supabase.co') {
+    console.warn('Supabase not properly configured, using mock client')
+    return createMockClient() as any
+  }
+
+  try {
+    return createClient(supabaseUrl, supabaseAnonKey)
+  } catch (error) {
+    console.warn('Failed to create Supabase client, using mock:', error)
+    return createMockClient() as any
+  }
+}
+
+// Mock client that mimics Supabase interface
+function createMockClient() {
+  const mockResponse = { data: null, error: null }
+  
+  const mockQueryBuilder = {
+    select: () => mockQueryBuilder,
+    insert: () => mockQueryBuilder,
+    update: () => mockQueryBuilder,
+    delete: () => mockQueryBuilder,
+    upsert: () => mockQueryBuilder,
+    eq: () => mockQueryBuilder,
+    neq: () => mockQueryBuilder,
+    gt: () => mockQueryBuilder,
+    lt: () => mockQueryBuilder,
+    gte: () => mockQueryBuilder,
+    lte: () => mockQueryBuilder,
+    like: () => mockQueryBuilder,
+    ilike: () => mockQueryBuilder,
+    is: () => mockQueryBuilder,
+    in: () => mockQueryBuilder,
+    contains: () => mockQueryBuilder,
+    range: () => mockQueryBuilder,
+    limit: () => mockQueryBuilder,
+    order: () => mockQueryBuilder,
+    single: () => Promise.resolve(mockResponse),
+    then: () => Promise.resolve(mockResponse)
+  }
+
+  return {
+    auth: {
+      signUp: async () => mockResponse,
+      signInWithPassword: async () => mockResponse,
+      signOut: async () => mockResponse,
+      getUser: async () => mockResponse,
+      getSession: async () => mockResponse,
+      onAuthStateChange: () => ({ 
+        data: { subscription: { unsubscribe: () => {} } } 
+      }),
+      resetPasswordForEmail: async () => mockResponse,
     },
-    resetPasswordForEmail: async () => ({ data: {}, error: null }),
-  },
-  from: (table: string) => ({
-    select: (columns?: string) => ({
-      eq: (column: string, value: any) => ({ data: [], error: null }),
-      data: [],
-      error: null
-    }),
-    insert: (data: any) => ({ data: null, error: null }),
-    update: (data: any) => ({
-      eq: (column: string, value: any) => ({ data: null, error: null })
-    }),
-    delete: () => ({
-      eq: (column: string, value: any) => ({ data: null, error: null })
-    }),
-    upsert: (data: any) => ({ data: null, error: null }),
-  }),
-});
+    from: () => mockQueryBuilder,
+    storage: {
+      from: () => ({
+        upload: async () => mockResponse,
+        download: async () => mockResponse,
+        remove: async () => mockResponse,
+        list: async () => mockResponse,
+      })
+    },
+    rpc: async () => mockResponse,
+    channel: () => ({
+      on: () => ({ subscribe: () => {} }),
+      subscribe: () => {}
+    })
+  }
+}
 
-// Crear cliente de Supabase real
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create and export the client
+const supabase = createSupabaseClient()
 
-// Helper to check if Supabase is properly configured
+export default supabase
+
+// Helper function to check if Supabase is properly configured
 export const isSupabaseConfigured = () => {
-  return true; // Ahora siempre está configurado
-};
+  return !!(
+    supabaseUrl && 
+    supabaseAnonKey && 
+    !supabaseUrl.includes('placeholder') &&
+    supabaseUrl !== 'https://placeholder.supabase.co'
+  )
+}
